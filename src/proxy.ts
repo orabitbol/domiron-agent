@@ -7,8 +7,10 @@ export default auth((req) => {
 
   const isAuthPage = nextUrl.pathname.startsWith("/login");
   const isApiAuth = nextUrl.pathname.startsWith("/api/auth");
+  const isAgentApi = nextUrl.pathname.startsWith("/api/agent");
 
   if (isApiAuth) return NextResponse.next();
+  if (isAgentApi) return NextResponse.next();
 
   if (isAuthPage) {
     if (isLoggedIn) {
