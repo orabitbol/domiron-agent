@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Platform {
+  INSTAGRAM
+  FACEBOOK
+  BOTH
+}
+
+enum ContentType {
+  POST
+  STORY
+  CAROUSEL
+  REEL
+}
+
+enum ContentFormat {
+  STATIC
+  CAROUSEL
+  REEL
+  STORY
+}
+
+enum RequestStatus {
+  NEW
+  IN_PROGRESS
+  DRAFT_READY
+  REVISION_NEEDED
+  COMPLETED
+  CANCELLED
+}
+
+enum DraftStatus {
+  PENDING_REVIEW
+  APPROVED
+  REVISION_NEEDED
+  REJECTED
+  EDITED
+}
+
+enum PublishJobStatus {
+  QUEUED
+  SCHEDULED
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+enum PublishMethod {
+  MANUAL
+  AUTO
+}
+
+enum ChangedBy {
+  AGENT
+  ADMIN
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model ContentRequest {
+  id                String        @id @default(cuid())
+  title             String
+  platform          Platform
+  contentType       ContentType
+  sequenceDay       Int?
+  contentPillar     String?
+  instructions      String?
+  targetPublishDate DateTime?
+  status            RequestStatus @default(NEW)
+  draft             Draft?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@map("content_requests")
+}
+
+model Draft {
+  id                String        @id @default(cuid())
+  requestId         String        @unique
+  request           ContentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  goal              String?
+  bestAngle         String?
+  format            ContentFormat
+  hook              String?
+  facebookCaption   String?
+  instagramCaption  String?
+  storyFrames       Json?
+  cta               String?
+  hashtags          String[]
+  visualDirection   String?
+  whyThisMatters    String?
+  adminNotes        String?
+  status            DraftStatus   @default(PENDING_REVIEW)
+  version           Int           @default(1)
+  revisions         DraftRevision[]
+  publishJob        PublishJob?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@map("drafts")
+}
+
+model PublishJob {
+  id             String           @id @default(cuid())
+  draftId        String           @unique
+  draft          Draft            @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  platform       Platform
+  scheduledDate  DateTime?
+  publishedAt    DateTime?
+  status         PublishJobStatus @default(QUEUED)
+  publishMethod  PublishMethod    @default(MANUAL)
+  externalPostId String?
+  cancelledAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@map("publish_jobs")
+}
+
+model DraftRevision {
+  id         String    @id @default(cuid())
+  draftId    String
+  draft      Draft     @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  version    Int
+  snapshot   Json
+  changedBy  ChangedBy
+  changeNote String?
+  createdAt  DateTime  @default(now())
+
+  @@map("draft_revisions")
+}
