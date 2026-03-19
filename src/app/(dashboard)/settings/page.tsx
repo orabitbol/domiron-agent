@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Facebook, Instagram, Link2Off, Loader2, AlertCircle, CheckCircle2, Link2 } from "lucide-react";
 import { toast } from "sonner";
@@ -173,21 +173,16 @@ function PlatformCard({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── OAuth feedback (must be in its own component for Suspense boundary) ──────
 
-export default function SettingsPage() {
+function OAuthFeedback() {
   const searchParams = useSearchParams();
-  const { data, isLoading, isError, refetch } = useMetaConnections();
-  const { mutate: disconnect, isPending: isDisconnecting } = useDisconnectMeta();
-  const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  // Show feedback from OAuth callback redirect
   useEffect(() => {
     const connected = searchParams.get("meta_connected");
     const error = searchParams.get("meta_error");
     if (connected === "true") {
       toast.success("החיבור ל-Meta הצליח");
-      // Clean URL without re-render
       window.history.replaceState({}, "", "/settings");
     } else if (error) {
       const messages: Record<string, string> = {
@@ -201,6 +196,16 @@ export default function SettingsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  return null;
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function SettingsPage() {
+  const { data, isLoading, isError, refetch } = useMetaConnections();
+  const { mutate: disconnect, isPending: isDisconnecting } = useDisconnectMeta();
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const fbConnection = data?.find((c) => c.platform === "FACEBOOK");
   const igConnection = data?.find((c) => c.platform === "INSTAGRAM");
@@ -219,6 +224,9 @@ export default function SettingsPage() {
 
   return (
     <div>
+      <Suspense>
+        <OAuthFeedback />
+      </Suspense>
       <Topbar title="הגדרות" showAction={false} />
       <div className="p-6 max-w-xl">
         {/* Section header */}
