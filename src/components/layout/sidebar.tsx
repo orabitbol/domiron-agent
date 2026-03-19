@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { FileText, PenLine, CalendarClock, LogOut } from "lucide-react";
+import { FileText, PenLine, CalendarClock, Settings, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -21,6 +21,11 @@ const navItems = [
     label: "תור פרסום",
     href: "/queue",
     icon: CalendarClock,
+  },
+  {
+    label: "הגדרות",
+    href: "/settings",
+    icon: Settings,
   },
 ];
 

@@ -65,6 +65,11 @@ enum ChangedBy {
   ADMIN
 }
 
+enum MetaPlatform {
+  INSTAGRAM
+  FACEBOOK
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model ContentRequest {
@@ -120,11 +125,29 @@ model PublishJob {
   status         PublishJobStatus @default(QUEUED)
   publishMethod  PublishMethod    @default(MANUAL)
   externalPostId String?
+  publishedUrl   String?
+  failureReason  String?
+  metaRequestId  String?
   cancelledAt    DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
   @@map("publish_jobs")
+}
+
+model MetaConnection {
+  id             String        @id @default(cuid())
+  platform       MetaPlatform
+  pageId         String
+  pageName       String
+  encryptedToken String
+  tokenExpiresAt DateTime?
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([platform, pageId])
+  @@map("meta_connections")
 }
 
 model DraftRevision {
