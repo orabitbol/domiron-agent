@@ -1,30 +1,9 @@
-import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
 
-export default auth((req) => {
-  const { nextUrl, auth: session } = req;
-  const isLoggedIn = !!session;
+export const { auth: middleware } = NextAuth(authConfig);
 
-  const isAuthPage = nextUrl.pathname.startsWith("/login");
-  const isApiAuth = nextUrl.pathname.startsWith("/api/auth");
-  const isAgentApi = nextUrl.pathname.startsWith("/api/agent");
-
-  if (isApiAuth) return NextResponse.next();
-  if (isAgentApi) return NextResponse.next();
-
-  if (isAuthPage) {
-    if (isLoggedIn) {
-      return NextResponse.redirect(new URL("/requests", nextUrl));
-    }
-    return NextResponse.next();
-  }
-
-  if (!isLoggedIn) {
-    return NextResponse.redirect(new URL("/login", nextUrl));
-  }
-
-  return NextResponse.next();
-});
+export default middleware;
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],

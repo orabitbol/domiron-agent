@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
+import { authConfig } from "./auth.config";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -8,6 +9,7 @@ const loginSchema = z.object({
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   providers: [
     Credentials({
       name: "credentials",
@@ -40,24 +42,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
-  pages: {
-    signIn: "/login",
-  },
-  callbacks: {
-    jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-      }
-      return token;
-    },
-    session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id as string;
-      }
-      return session;
-    },
-  },
-  session: {
-    strategy: "jwt",
-  },
 });
