@@ -8,26 +8,30 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const publishJobs = await prisma.publishJob.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      draft: {
-        select: {
-          id: true,
-          hook: true,
-          format: true,
-          mediaUrl: true,
-          request: {
-            select: {
-              title: true,
-              platform: true,
-              contentType: true,
+  try {
+    const publishJobs = await prisma.publishJob.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        draft: {
+          select: {
+            id: true,
+            hook: true,
+            format: true,
+            mediaUrl: true,
+            request: {
+              select: {
+                title: true,
+                platform: true,
+                contentType: true,
+              },
             },
           },
         },
       },
-    },
-  });
-
-  return NextResponse.json({ data: publishJobs });
+    });
+    return NextResponse.json({ data: publishJobs });
+  } catch (err) {
+    console.error("[/api/publish-jobs] GET error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

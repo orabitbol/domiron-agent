@@ -13,16 +13,21 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
   const { id } = await params;
 
-  const contentRequest = await prisma.contentRequest.findUnique({
-    where: { id },
-    include: { draft: true },
-  });
+  try {
+    const contentRequest = await prisma.contentRequest.findUnique({
+      where: { id },
+      include: { draft: true },
+    });
 
-  if (!contentRequest) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!contentRequest) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ data: contentRequest });
+  } catch (err) {
+    console.error("[/api/requests/:id] GET error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  return NextResponse.json({ data: contentRequest });
 }
 
 export async function PATCH(request: Request, { params }: RouteContext) {
@@ -51,23 +56,27 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const { title, platform, contentType, sequenceDay, contentPillar, instructions, targetPublishDate, status } =
     result.data;
 
-  const updated = await prisma.contentRequest.update({
-    where: { id },
-    data: {
-      ...(title !== undefined && { title }),
-      ...(platform !== undefined && { platform }),
-      ...(contentType !== undefined && { contentType }),
-      ...(sequenceDay !== undefined && { sequenceDay }),
-      ...(contentPillar !== undefined && { contentPillar: contentPillar || null }),
-      ...(instructions !== undefined && { instructions: instructions || null }),
-      ...(targetPublishDate !== undefined && {
-        targetPublishDate: targetPublishDate ? new Date(targetPublishDate) : null,
-      }),
-      ...(status !== undefined && { status }),
-    },
-  });
-
-  return NextResponse.json({ data: updated });
+  try {
+    const updated = await prisma.contentRequest.update({
+      where: { id },
+      data: {
+        ...(title !== undefined && { title }),
+        ...(platform !== undefined && { platform }),
+        ...(contentType !== undefined && { contentType }),
+        ...(sequenceDay !== undefined && { sequenceDay }),
+        ...(contentPillar !== undefined && { contentPillar: contentPillar || null }),
+        ...(instructions !== undefined && { instructions: instructions || null }),
+        ...(targetPublishDate !== undefined && {
+          targetPublishDate: targetPublishDate ? new Date(targetPublishDate) : null,
+        }),
+        ...(status !== undefined && { status }),
+      },
+    });
+    return NextResponse.json({ data: updated });
+  } catch (err) {
+    console.error("[/api/requests/:id] PATCH error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function DELETE(_request: Request, { params }: RouteContext) {
@@ -78,23 +87,27 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
 
   const { id } = await params;
 
-  const contentRequest = await prisma.contentRequest.findUnique({
-    where: { id },
-  });
+  try {
+    const contentRequest = await prisma.contentRequest.findUnique({
+      where: { id },
+    });
 
-  if (!contentRequest) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (!contentRequest) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (contentRequest.status !== "NEW") {
+      return NextResponse.json(
+        { error: "ניתן למחוק רק בקשות בסטטוס חדש" },
+        { status: 400 }
+      );
+    }
+
+    await prisma.contentRequest.delete({ where: { id } });
+    return NextResponse.json({ data: { success: true } });
+  } catch (err) {
+    console.error("[/api/requests/:id] DELETE error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  if (contentRequest.status !== "NEW") {
-    return NextResponse.json(
-      { error: "ניתן למחוק רק בקשות בסטטוס חדש" },
-      { status: 400 }
-    );
-  }
-
-  await prisma.contentRequest.delete({ where: { id } });
-
-  return NextResponse.json({ data: { success: true } });
 }
 

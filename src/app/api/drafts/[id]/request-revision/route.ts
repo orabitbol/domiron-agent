@@ -30,37 +30,42 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const { note } = result.data;
 
-  const draft = await prisma.draft.findUnique({ where: { id } });
-  if (!draft) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    const draft = await prisma.draft.findUnique({ where: { id } });
+    if (!draft) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedDraft = await tx.draft.update({
+        where: { id },
+        data: {
+          status: "REVISION_NEEDED",
+          adminNotes: note,
+        },
+      });
+
+      await tx.contentRequest.update({
+        where: { id: draft.requestId },
+        data: { status: "REVISION_NEEDED" },
+      });
+
+      await tx.draftRevision.create({
+        data: {
+          draftId: id,
+          version: draft.version,
+          snapshot: JSON.parse(JSON.stringify({ ...updatedDraft, action: "REVISION_NEEDED" })),
+          changedBy: "ADMIN",
+          changeNote: note,
+        },
+      });
+
+      return updatedDraft;
+    });
+
+    return NextResponse.json({ data: updated });
+  } catch (err) {
+    console.error("[/api/drafts/:id/request-revision] error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const updated = await prisma.$transaction(async (tx) => {
-    const updatedDraft = await tx.draft.update({
-      where: { id },
-      data: {
-        status: "REVISION_NEEDED",
-        adminNotes: note,
-      },
-    });
-
-    await tx.contentRequest.update({
-      where: { id: draft.requestId },
-      data: { status: "REVISION_NEEDED" },
-    });
-
-    await tx.draftRevision.create({
-      data: {
-        draftId: id,
-        version: draft.version,
-        snapshot: JSON.parse(JSON.stringify({ ...updatedDraft, action: "REVISION_NEEDED" })),
-        changedBy: "ADMIN",
-        changeNote: note,
-      },
-    });
-
-    return updatedDraft;
-  });
-
-  return NextResponse.json({ data: updated });
 }

@@ -23,37 +23,42 @@ export async function POST(request: Request, { params }: RouteContext) {
   const parsed = rejectNoteSchema.safeParse(body);
   const note = parsed.success ? (parsed.data.note ?? null) : null;
 
-  const draft = await prisma.draft.findUnique({ where: { id } });
-  if (!draft) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    const draft = await prisma.draft.findUnique({ where: { id } });
+    if (!draft) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedDraft = await tx.draft.update({
+        where: { id },
+        data: {
+          status: "REJECTED",
+          ...(note && { adminNotes: note }),
+        },
+      });
+
+      await tx.contentRequest.update({
+        where: { id: draft.requestId },
+        data: { status: "CANCELLED" },
+      });
+
+      await tx.draftRevision.create({
+        data: {
+          draftId: id,
+          version: draft.version,
+          snapshot: JSON.parse(JSON.stringify({ ...updatedDraft, action: "REJECTED" })),
+          changedBy: "ADMIN",
+          changeNote: note ?? "נדחה",
+        },
+      });
+
+      return updatedDraft;
+    });
+
+    return NextResponse.json({ data: updated });
+  } catch (err) {
+    console.error("[/api/drafts/:id/reject] error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-
-  const updated = await prisma.$transaction(async (tx) => {
-    const updatedDraft = await tx.draft.update({
-      where: { id },
-      data: {
-        status: "REJECTED",
-        ...(note && { adminNotes: note }),
-      },
-    });
-
-    await tx.contentRequest.update({
-      where: { id: draft.requestId },
-      data: { status: "CANCELLED" },
-    });
-
-    await tx.draftRevision.create({
-      data: {
-        draftId: id,
-        version: draft.version,
-        snapshot: JSON.parse(JSON.stringify({ ...updatedDraft, action: "REJECTED" })),
-        changedBy: "ADMIN",
-        changeNote: note ?? "נדחה",
-      },
-    });
-
-    return updatedDraft;
-  });
-
-  return NextResponse.json({ data: updated });
 }

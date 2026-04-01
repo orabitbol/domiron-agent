@@ -9,16 +9,20 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const requests = await prisma.contentRequest.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      draft: {
-        select: { id: true, status: true },
+  try {
+    const requests = await prisma.contentRequest.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        draft: {
+          select: { id: true, status: true },
+        },
       },
-    },
-  });
-
-  return NextResponse.json({ data: requests });
+    });
+    return NextResponse.json({ data: requests });
+  } catch (err) {
+    console.error("[/api/requests] GET error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -45,17 +49,21 @@ export async function POST(request: Request) {
   const { title, platform, contentType, sequenceDay, contentPillar, instructions, targetPublishDate } =
     result.data;
 
-  const newRequest = await prisma.contentRequest.create({
-    data: {
-      title,
-      platform,
-      contentType,
-      sequenceDay: sequenceDay ?? null,
-      contentPillar: contentPillar || null,
-      instructions: instructions || null,
-      targetPublishDate: targetPublishDate ? new Date(targetPublishDate) : null,
-    },
-  });
-
-  return NextResponse.json({ data: newRequest }, { status: 201 });
+  try {
+    const newRequest = await prisma.contentRequest.create({
+      data: {
+        title,
+        platform,
+        contentType,
+        sequenceDay: sequenceDay ?? null,
+        contentPillar: contentPillar || null,
+        instructions: instructions || null,
+        targetPublishDate: targetPublishDate ? new Date(targetPublishDate) : null,
+      },
+    });
+    return NextResponse.json({ data: newRequest }, { status: 201 });
+  } catch (err) {
+    console.error("[/api/requests] POST error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

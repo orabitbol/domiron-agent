@@ -28,38 +28,43 @@ export async function POST(_request: Request, { params }: RouteContext) {
     );
   }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const updatedDraft = await tx.draft.update({
-      where: { id },
-      data: { status: "APPROVED" },
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const updatedDraft = await tx.draft.update({
+        where: { id },
+        data: { status: "APPROVED" },
+      });
+
+      await tx.contentRequest.update({
+        where: { id: draft.requestId },
+        data: { status: "COMPLETED" },
+      });
+
+      const publishJob = await tx.publishJob.create({
+        data: {
+          draftId: id,
+          platform: draft.request.platform,
+          status: "QUEUED",
+          publishMethod: "MANUAL",
+        },
+      });
+
+      await tx.draftRevision.create({
+        data: {
+          draftId: id,
+          version: draft.version,
+          snapshot: JSON.parse(JSON.stringify({ ...updatedDraft, action: "APPROVED" })),
+          changedBy: "ADMIN",
+          changeNote: "אושר",
+        },
+      });
+
+      return { draft: updatedDraft, publishJob };
     });
 
-    await tx.contentRequest.update({
-      where: { id: draft.requestId },
-      data: { status: "COMPLETED" },
-    });
-
-    const publishJob = await tx.publishJob.create({
-      data: {
-        draftId: id,
-        platform: draft.request.platform,
-        status: "QUEUED",
-        publishMethod: "MANUAL",
-      },
-    });
-
-    await tx.draftRevision.create({
-      data: {
-        draftId: id,
-        version: draft.version,
-        snapshot: JSON.parse(JSON.stringify({ ...updatedDraft, action: "APPROVED" })),
-        changedBy: "ADMIN",
-        changeNote: "אושר",
-      },
-    });
-
-    return { draft: updatedDraft, publishJob };
-  });
-
-  return NextResponse.json({ data: result });
+    return NextResponse.json({ data: result });
+  } catch (err) {
+    console.error("[/api/drafts/:id/approve] error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

@@ -9,22 +9,26 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const drafts = await prisma.draft.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      request: {
-        select: {
-          id: true,
-          title: true,
-          platform: true,
-          contentType: true,
-          sequenceDay: true,
+  try {
+    const drafts = await prisma.draft.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        request: {
+          select: {
+            id: true,
+            title: true,
+            platform: true,
+            contentType: true,
+            sequenceDay: true,
+          },
         },
       },
-    },
-  });
-
-  return NextResponse.json({ data: drafts });
+    });
+    return NextResponse.json({ data: drafts });
+  } catch (err) {
+    console.error("[/api/drafts] GET error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
@@ -50,61 +54,66 @@ export async function POST(request: Request) {
 
   const { requestId, format, hook, hashtags, storyFrames, ...rest } = result.data;
 
-  // Ensure request exists
-  const contentRequest = await prisma.contentRequest.findUnique({
-    where: { id: requestId },
-  });
-  if (!contentRequest) {
-    return NextResponse.json({ error: "בקשה לא נמצאה" }, { status: 404 });
-  }
-
-  // Ensure request does not already have a draft
-  const existing = await prisma.draft.findUnique({ where: { requestId } });
-  if (existing) {
-    return NextResponse.json(
-      { error: "לבקשה זו כבר קיימת טיוטה" },
-      { status: 409 }
-    );
-  }
-
-  const draft = await prisma.$transaction(async (tx) => {
-    const newDraft = await tx.draft.create({
-      data: {
-        requestId,
-        format,
-        hook: hook ?? null,
-        hashtags: hashtags ?? [],
-        storyFrames: storyFrames ? JSON.parse(JSON.stringify(storyFrames)) : null,
-        goal: rest.goal || null,
-        bestAngle: rest.bestAngle || null,
-        facebookCaption: rest.facebookCaption || null,
-        instagramCaption: rest.instagramCaption || null,
-        cta: rest.cta || null,
-        visualDirection: rest.visualDirection || null,
-        whyThisMatters: rest.whyThisMatters || null,
-        adminNotes: rest.adminNotes || null,
-        mediaUrl: rest.mediaUrl || null,
-        status: "PENDING_REVIEW",
-        version: 1,
-      },
-    });
-
-    await tx.contentRequest.update({
+  try {
+    // Ensure request exists
+    const contentRequest = await prisma.contentRequest.findUnique({
       where: { id: requestId },
-      data: { status: "DRAFT_READY" },
+    });
+    if (!contentRequest) {
+      return NextResponse.json({ error: "בקשה לא נמצאה" }, { status: 404 });
+    }
+
+    // Ensure request does not already have a draft
+    const existing = await prisma.draft.findUnique({ where: { requestId } });
+    if (existing) {
+      return NextResponse.json(
+        { error: "לבקשה זו כבר קיימת טיוטה" },
+        { status: 409 }
+      );
+    }
+
+    const draft = await prisma.$transaction(async (tx) => {
+      const newDraft = await tx.draft.create({
+        data: {
+          requestId,
+          format,
+          hook: hook ?? null,
+          hashtags: hashtags ?? [],
+          storyFrames: storyFrames ? JSON.parse(JSON.stringify(storyFrames)) : null,
+          goal: rest.goal || null,
+          bestAngle: rest.bestAngle || null,
+          facebookCaption: rest.facebookCaption || null,
+          instagramCaption: rest.instagramCaption || null,
+          cta: rest.cta || null,
+          visualDirection: rest.visualDirection || null,
+          whyThisMatters: rest.whyThisMatters || null,
+          adminNotes: rest.adminNotes || null,
+          mediaUrl: rest.mediaUrl || null,
+          status: "PENDING_REVIEW",
+          version: 1,
+        },
+      });
+
+      await tx.contentRequest.update({
+        where: { id: requestId },
+        data: { status: "DRAFT_READY" },
+      });
+
+      await tx.draftRevision.create({
+        data: {
+          draftId: newDraft.id,
+          version: 1,
+          snapshot: JSON.parse(JSON.stringify(newDraft)),
+          changedBy: "AGENT",
+        },
+      });
+
+      return newDraft;
     });
 
-    await tx.draftRevision.create({
-      data: {
-        draftId: newDraft.id,
-        version: 1,
-        snapshot: JSON.parse(JSON.stringify(newDraft)),
-        changedBy: "AGENT",
-      },
-    });
-
-    return newDraft;
-  });
-
-  return NextResponse.json({ data: draft }, { status: 201 });
+    return NextResponse.json({ data: draft }, { status: 201 });
+  } catch (err) {
+    console.error("[/api/drafts] POST error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
