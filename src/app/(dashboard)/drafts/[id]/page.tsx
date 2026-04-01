@@ -10,6 +10,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { Skeleton } from "@/components/shared/loading-skeleton";
 import { DraftContentPanel } from "@/components/drafts/draft-content-panel";
 import { DraftMetaPanel } from "@/components/drafts/draft-meta-panel";
+import { MediaUploadSection } from "@/components/drafts/media-upload-section";
 import {
   useDraft,
   useApproveDraft,
@@ -158,7 +159,7 @@ export default function DraftReviewPage({ params }: PageProps) {
 
           {/* 65/35 layout — in RTL: meta on right (first), content on left (second) */}
           <div className="flex gap-6 p-6">
-            <div style={{ width: "35%" }}>
+            <div style={{ width: "35%" }} className="space-y-4">
               <DraftMetaPanel
                 draft={draft}
                 isApproving={isApproving}
@@ -167,6 +168,10 @@ export default function DraftReviewPage({ params }: PageProps) {
                 onApprove={handleApprove}
                 onReject={handleReject}
                 onRequestRevision={handleRequestRevision}
+              />
+              <MediaUploadSection
+                draftId={draft.id}
+                currentMediaUrl={draft.mediaUrl}
               />
             </div>
             <div className="flex-1">

@@ -16,6 +16,7 @@ export async function GET() {
           id: true,
           hook: true,
           format: true,
+          mediaUrl: true,
           request: {
             select: {
               title: true,

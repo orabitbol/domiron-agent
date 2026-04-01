@@ -170,7 +170,18 @@ export function QueueTable({ jobs }: QueueTableProps) {
                     {isActionable && (
                       <Button
                         size="sm"
-                        onClick={() => setConfirmId(job.id)}
+                        onClick={() => {
+                          const needsMedia =
+                            job.draft.request.platform === "INSTAGRAM" ||
+                            job.draft.request.platform === "BOTH";
+                          if (needsMedia && !job.draft.mediaUrl) {
+                            toast.error(
+                              "לפרסום לאינסטגרם נדרשת תמונה. פתח את הטיוטה והעלה תמונה לפני הפרסום."
+                            );
+                            return;
+                          }
+                          setConfirmId(job.id);
+                        }}
                         style={{
                           backgroundColor: "#14532d",
                           color: "#4ade80",

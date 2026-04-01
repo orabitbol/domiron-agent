@@ -20,6 +20,7 @@ export type PublishJobWithDraft = {
     id: string;
     hook: string | null;
     format: string;
+    mediaUrl: string | null;
     request: {
       title: string;
       platform: string;

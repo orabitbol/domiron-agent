@@ -25,7 +25,8 @@ export const draftSchema = z.object({
   adminNotes: z.string().optional(),
   // Public HTTPS URL for the primary media asset.
   // Required for Instagram publishing; optional for Facebook text/link posts.
-  mediaUrl: z.string().url("mediaUrl must be a valid URL").optional(),
+  // null = no media (allowed on PATCH so the admin can clear the field).
+  mediaUrl: z.union([z.string().url("mediaUrl must be a valid URL"), z.null()]).optional(),
 });
 
 export const patchDraftSchema = draftSchema.omit({ requestId: true }).partial();

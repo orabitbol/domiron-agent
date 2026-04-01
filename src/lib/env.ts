@@ -22,10 +22,17 @@ const REQUIRED_AUTH_ENV = [
 
 const REQUIRED_AGENT_ENV = ["AGENT_API_KEY"] as const;
 
+const REQUIRED_CLOUDINARY_ENV = [
+  "CLOUDINARY_CLOUD_NAME",
+  "CLOUDINARY_API_KEY",
+  "CLOUDINARY_API_SECRET",
+] as const;
+
 type MetaEnvKey = (typeof REQUIRED_META_ENV)[number];
 type AuthEnvKey = (typeof REQUIRED_AUTH_ENV)[number];
 type AgentEnvKey = (typeof REQUIRED_AGENT_ENV)[number];
-type KnownEnvKey = MetaEnvKey | AuthEnvKey | AgentEnvKey;
+type CloudinaryEnvKey = (typeof REQUIRED_CLOUDINARY_ENV)[number];
+type KnownEnvKey = MetaEnvKey | AuthEnvKey | AgentEnvKey | CloudinaryEnvKey;
 
 /**
  * Returns the value of an env var, throwing a clear error if it is missing.
@@ -40,6 +47,14 @@ export function getEnv(key: KnownEnvKey): string {
     );
   }
   return value;
+}
+
+/**
+ * Validates that all Cloudinary-related env vars are present.
+ * Returns false (rather than throwing) so callers can return a friendly 500.
+ */
+export function isCloudinaryConfigured(): boolean {
+  return REQUIRED_CLOUDINARY_ENV.every((k) => !!process.env[k]);
 }
 
 /**

@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { DraftStatus } from "@/types";
+import type { PatchDraftData } from "@/lib/validations/draft";
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ export type DraftFull = {
   visualDirection: string | null;
   whyThisMatters: string | null;
   adminNotes: string | null;
+  mediaUrl: string | null;
   status: DraftStatus;
   version: number;
   request: DraftRequestFull;
@@ -190,6 +192,28 @@ export function useRequestRevision() {
       queryClient.invalidateQueries({ queryKey: DRAFTS_KEY });
       queryClient.invalidateQueries({ queryKey: draftKey(id) });
       queryClient.invalidateQueries({ queryKey: REQUESTS_KEY });
+    },
+  });
+}
+
+export function usePatchDraft() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: PatchDraftData }) => {
+      const res = await fetch(`/api/drafts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "שגיאה בעדכון הטיוטה");
+      }
+      return res.json() as Promise<{ data: DraftFull }>;
+    },
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: draftKey(id) });
+      queryClient.invalidateQueries({ queryKey: DRAFTS_KEY });
     },
   });
 }
