@@ -11,6 +11,9 @@ export type PublishJobWithDraft = {
   scheduledDate: string | null;
   publishedAt: string | null;
   cancelledAt: string | null;
+  externalPostId: string | null;
+  publishedUrl: string | null;
+  failureReason: string | null;
   createdAt: string;
   updatedAt: string;
   draft: {
@@ -39,16 +42,32 @@ export function usePublishJobs() {
   });
 }
 
+export type PublishAttemptResult = {
+  platform: string;
+  success: boolean;
+  externalPostId: string | null;
+  publishedUrl: string | null;
+  failureReason: string | null;
+};
+
+export type MarkPublishedResponse = {
+  data: PublishJobWithDraft;
+  publishStatus: "PUBLISHED" | "FAILED";
+  results: PublishAttemptResult[];
+};
+
 export function useMarkPublished() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (id: string): Promise<MarkPublishedResponse> => {
       const res = await fetch(`/api/publish-jobs/${id}/mark-published`, {
         method: "POST",
       });
+      // 4xx / 5xx = unexpected error (bad state, server crash, missing env vars).
+      // A Meta API failure returns 200 with publishStatus: "FAILED".
       if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error ?? "שגיאה בסימון הפוסט");
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "שגיאה בפרסום הפוסט");
       }
       return res.json();
     },

@@ -78,6 +78,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         ...(data.visualDirection !== undefined && { visualDirection: data.visualDirection || null }),
         ...(data.whyThisMatters !== undefined && { whyThisMatters: data.whyThisMatters || null }),
         ...(data.adminNotes !== undefined && { adminNotes: data.adminNotes || null }),
+        ...(data.mediaUrl !== undefined && { mediaUrl: data.mediaUrl || null }),
         status: "EDITED",
         version: newVersion,
       },

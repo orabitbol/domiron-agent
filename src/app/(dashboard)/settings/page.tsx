@@ -189,6 +189,7 @@ function OAuthFeedback() {
         access_denied: "ההרשאה נדחתה על ידי המשתמש",
         token_exchange_failed: "שגיאה בהחלפת טוקן — נסה שוב",
         pages_fetch_failed: "שגיאה בטעינת רשימת הדפים",
+        state_mismatch: "שגיאת אבטחה — נסה להתחבר שוב",
         server_error: "שגיאת שרת — נסה שוב",
       };
       toast.error(messages[error] ?? "שגיאה בחיבור ל-Meta");

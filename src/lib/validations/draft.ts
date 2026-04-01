@@ -23,6 +23,9 @@ export const draftSchema = z.object({
   visualDirection: z.string().optional(),
   whyThisMatters: z.string().optional(),
   adminNotes: z.string().optional(),
+  // Public HTTPS URL for the primary media asset.
+  // Required for Instagram publishing; optional for Facebook text/link posts.
+  mediaUrl: z.string().url("mediaUrl must be a valid URL").optional(),
 });
 
 export const patchDraftSchema = draftSchema.omit({ requestId: true }).partial();

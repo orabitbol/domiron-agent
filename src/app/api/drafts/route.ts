@@ -83,6 +83,7 @@ export async function POST(request: Request) {
         visualDirection: rest.visualDirection || null,
         whyThisMatters: rest.whyThisMatters || null,
         adminNotes: rest.adminNotes || null,
+        mediaUrl: rest.mediaUrl || null,
         status: "PENDING_REVIEW",
         version: 1,
       },

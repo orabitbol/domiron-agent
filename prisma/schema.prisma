@@ -105,6 +105,11 @@ model Draft {
   visualDirection   String?
   whyThisMatters    String?
   adminNotes        String?
+  // Public URL of the primary media asset (image/video).
+  // Required for Instagram publishing (Meta API will not accept base64 or local files).
+  // Must be an https:// URL accessible by Meta's servers.
+  // Use a CDN, Cloudinary, S3, or Vercel Blob to host the file.
+  mediaUrl          String?
   status            DraftStatus   @default(PENDING_REVIEW)
   version           Int           @default(1)
   revisions         DraftRevision[]

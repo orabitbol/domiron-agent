@@ -1,4 +1,7 @@
 // ─── Enums ───────────────────────────────────────────────────────────────────
+// These must stay in sync with prisma/schema.prisma.
+// Do NOT add platforms or content types here that are not in the Prisma schema —
+// they cannot be stored in the database and will cause runtime errors on insert.
 
 export enum RequestStatus {
   NEW = "NEW",
@@ -14,15 +17,22 @@ export enum ContentType {
   STORY = "STORY",
   REEL = "REEL",
   CAROUSEL = "CAROUSEL",
-  ARTICLE = "ARTICLE",
+  // NOTE: ARTICLE is intentionally absent — it does not exist in the DB schema.
 }
 
 export enum Platform {
   INSTAGRAM = "INSTAGRAM",
   FACEBOOK = "FACEBOOK",
-  LINKEDIN = "LINKEDIN",
-  TWITTER = "TWITTER",
-  TIKTOK = "TIKTOK",
+  BOTH = "BOTH",
+  // NOTE: LINKEDIN, TWITTER, TIKTOK are intentionally absent — they do not exist
+  // in the DB schema and are not supported by the Meta integration.
+}
+
+export enum ContentFormat {
+  STATIC = "STATIC",
+  CAROUSEL = "CAROUSEL",
+  REEL = "REEL",
+  STORY = "STORY",
 }
 
 export enum DraftStatus {
@@ -57,15 +67,19 @@ export const ContentTypeLabels: Record<ContentType, string> = {
   [ContentType.STORY]: "סטורי",
   [ContentType.REEL]: "ריל",
   [ContentType.CAROUSEL]: "קרוסלה",
-  [ContentType.ARTICLE]: "מאמר",
 };
 
 export const PlatformLabels: Record<Platform, string> = {
   [Platform.INSTAGRAM]: "אינסטגרם",
   [Platform.FACEBOOK]: "פייסבוק",
-  [Platform.LINKEDIN]: "לינקדאין",
-  [Platform.TWITTER]: "טוויטר",
-  [Platform.TIKTOK]: "טיקטוק",
+  [Platform.BOTH]: "פייסבוק + אינסטגרם",
+};
+
+export const ContentFormatLabels: Record<ContentFormat, string> = {
+  [ContentFormat.STATIC]: "סטטי",
+  [ContentFormat.CAROUSEL]: "קרוסלה",
+  [ContentFormat.REEL]: "ריל",
+  [ContentFormat.STORY]: "סטורי",
 };
 
 export const DraftStatusLabels: Record<DraftStatus, string> = {
@@ -83,43 +97,3 @@ export const PublishJobStatusLabels: Record<PublishJobStatus, string> = {
   [PublishJobStatus.FAILED]: "נכשל",
   [PublishJobStatus.CANCELLED]: "בוטל",
 };
-
-// ─── Interfaces ───────────────────────────────────────────────────────────────
-
-export interface ContentRequest {
-  id: string;
-  title: string;
-  description: string;
-  status: RequestStatus;
-  contentType: ContentType;
-  platform: Platform;
-  dueDate?: Date;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface Draft {
-  id: string;
-  requestId: string;
-  content: string;
-  status: DraftStatus;
-  feedback?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface PublishJob {
-  id: string;
-  draftId: string;
-  platform: Platform;
-  status: PublishJobStatus;
-  scheduledAt: Date;
-  publishedAt?: Date;
-  createdAt: Date;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name?: string;
-}

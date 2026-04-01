@@ -33,6 +33,10 @@ const intakeSchema = z.object({
     hashtags: z.array(z.string()).optional(),
     visual_direction: z.string().optional(),
     why_this_matters: z.string().optional(),
+    // Public HTTPS URL of the primary media asset.
+    // Required for Instagram publishing; optional for Facebook text posts.
+    // Must be accessible by Meta's servers (use CDN / Cloudinary / S3 / Vercel Blob).
+    media_url: z.string().url().optional(),
   }),
 });
 
@@ -94,6 +98,7 @@ export async function POST(request: Request) {
           cta: content.cta || null,
           visualDirection: content.visual_direction || null,
           whyThisMatters: content.why_this_matters || null,
+          mediaUrl: content.media_url || null,
           adminNotes: null,
           status: "PENDING_REVIEW",
           version: 1,

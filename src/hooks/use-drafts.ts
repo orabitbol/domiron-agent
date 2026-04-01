@@ -73,6 +73,9 @@ export type DraftFull = {
 
 const DRAFTS_KEY = ["drafts"] as const;
 const draftKey = (id: string) => ["drafts", id] as const;
+// Invalidated after any draft action that also changes a ContentRequest status
+// (approve → COMPLETED, reject → CANCELLED, revision → REVISION_NEEDED).
+const REQUESTS_KEY = ["requests"] as const;
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
@@ -134,8 +137,11 @@ export function useApproveDraft() {
       return res.json();
     },
     onSuccess: (_data, id) => {
+      // Approval sets ContentRequest.status → COMPLETED; invalidate requests too.
       queryClient.invalidateQueries({ queryKey: DRAFTS_KEY });
       queryClient.invalidateQueries({ queryKey: draftKey(id) });
+      queryClient.invalidateQueries({ queryKey: REQUESTS_KEY });
+      queryClient.invalidateQueries({ queryKey: ["publish-jobs"] });
     },
   });
 }
@@ -156,8 +162,10 @@ export function useRejectDraft() {
       return res.json();
     },
     onSuccess: (_data, { id }) => {
+      // Rejection sets ContentRequest.status → CANCELLED; invalidate requests too.
       queryClient.invalidateQueries({ queryKey: DRAFTS_KEY });
       queryClient.invalidateQueries({ queryKey: draftKey(id) });
+      queryClient.invalidateQueries({ queryKey: REQUESTS_KEY });
     },
   });
 }
@@ -178,8 +186,10 @@ export function useRequestRevision() {
       return res.json();
     },
     onSuccess: (_data, { id }) => {
+      // Revision request sets ContentRequest.status → REVISION_NEEDED; invalidate requests too.
       queryClient.invalidateQueries({ queryKey: DRAFTS_KEY });
       queryClient.invalidateQueries({ queryKey: draftKey(id) });
+      queryClient.invalidateQueries({ queryKey: REQUESTS_KEY });
     },
   });
 }
