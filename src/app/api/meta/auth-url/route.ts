@@ -34,7 +34,15 @@ export async function GET() {
   });
 
   const oauthUrl = `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${params.toString()}`;
-  console.log("[meta/auth-url] OAuth URL (first 120 chars):", oauthUrl.slice(0, 120));
+
+  // Log every param key and value (except state which changes per request).
+  // This makes it unambiguous in Vercel logs whether config_id or scope is active.
+  console.log("[meta/auth-url] params: client_id=", process.env.META_APP_ID);
+  console.log("[meta/auth-url] params: redirect_uri=", process.env.META_REDIRECT_URI);
+  console.log("[meta/auth-url] params: response_type=code");
+  console.log("[meta/auth-url] params: config_id=", process.env.META_CONFIG_ID);
+  console.log("[meta/auth-url] params: scope= (ABSENT — using config_id flow)");
+  console.log("[meta/auth-url] full param keys:", [...params.keys()].join(", "));
 
   // Redirect directly to Facebook — cookie is set on THIS response before the
   // browser follows the redirect, guaranteeing it arrives at the callback.
