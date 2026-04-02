@@ -9,6 +9,7 @@ import { PublishJobStatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import {
   useMarkPublished,
+  useRetryPublishJob,
   type PublishJobWithDraft,
   type MarkPublishedResponse,
 } from "@/hooks/use-publish-jobs";
@@ -52,6 +53,7 @@ interface QueueTableProps {
 export function QueueTable({ jobs }: QueueTableProps) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const { mutateAsync: markPublished, isPending } = useMarkPublished();
+  const { mutateAsync: retryJob, isPending: isRetrying } = useRetryPublishJob();
 
   const handleConfirm = async () => {
     if (!confirmId) return;
@@ -189,6 +191,28 @@ export function QueueTable({ jobs }: QueueTableProps) {
                         className="text-xs font-medium"
                       >
                         פרסם עכשיו
+                      </Button>
+                    )}
+                    {/* Retry button — only for FAILED jobs */}
+                    {isFailed && (
+                      <Button
+                        size="sm"
+                        disabled={isRetrying}
+                        onClick={async () => {
+                          try {
+                            await retryJob(job.id);
+                            toast.success("עבודת הפרסום אופסה לתור — לחץ פרסם עכשיו כדי לנסות שוב");
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "שגיאה באיפוס עבודת הפרסום");
+                          }
+                        }}
+                        style={{
+                          backgroundColor: "#1e3a5f",
+                          color: "#93c5fd",
+                        }}
+                        className="text-xs font-medium"
+                      >
+                        נסה שוב
                       </Button>
                     )}
                     {/* Show external link if the post was successfully published */}
