@@ -483,9 +483,9 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
     // connection. The token never leaves the server.
     if (plat === "INSTAGRAM") {
       const igUserId = process.env.INSTAGRAM_USER_ID;
-      const igToken = process.env.INSTAGRAM_ACCESS_TOKEN;
+      const igTokenRaw = process.env.INSTAGRAM_ACCESS_TOKEN;
 
-      if (!igUserId || !igToken) {
+      if (!igUserId || !igTokenRaw) {
         const reason =
           "INSTAGRAM_USER_ID and INSTAGRAM_ACCESS_TOKEN env vars are not set. " +
           "Add them to your environment to enable direct Instagram publishing.";
@@ -494,8 +494,16 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
         continue;
       }
 
+      // ── Token diagnostic logs (no full token printed) ────────────────────
+      const igToken = igTokenRaw.trim();
+      console.log(`[meta-publish] INSTAGRAM: INSTAGRAM_USER_ID=${igUserId}`);
+      console.log(`[meta-publish] INSTAGRAM: token present=true, length=${igTokenRaw.length} (trimmed=${igToken.length})`);
+      console.log(`[meta-publish] INSTAGRAM: token prefix=${igToken.slice(0, 6)} suffix=${igToken.slice(-4)}`);
+      console.log(`[meta-publish] INSTAGRAM: token has spaces=${/\s/.test(igToken)}, raw had leading/trailing whitespace=${igTokenRaw !== igToken}`);
+      console.log(`[meta-publish] INSTAGRAM: endpoint=POST ${GRAPH_BASE}/${igUserId}/media`);
+
       console.log(`[meta-publish] INSTAGRAM: using direct env credentials (user ID: ${igUserId})`);
-      const result = await publishToInstagram(igUserId, igUserId, igToken, draftContent);
+      const result = await publishToInstagram(igUserId.trim(), igUserId.trim(), igToken, draftContent);
 
       if (!result.success) {
         console.error(`[meta-publish] INSTAGRAM: ❌ FAILED — ${result.failureReason}`);
