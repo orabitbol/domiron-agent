@@ -59,7 +59,8 @@ export function isCloudinaryConfigured(): boolean {
 }
 
 /**
- * Validates that all Meta-related env vars are present.
+ * Validates that all Meta OAuth env vars are present.
+ * Used by the auth-url and callback routes, which need the full OAuth config.
  * Throws with a list of every missing var if any are absent.
  */
 export function requireMetaEnv(): void {
@@ -67,6 +68,22 @@ export function requireMetaEnv(): void {
   if (missing.length > 0) {
     throw new Error(
       `Missing required Meta environment variables: ${missing.join(", ")}. ` +
+        `Check .env.example for the expected format.`,
+    );
+  }
+}
+
+/**
+ * Validates only the env vars required for Facebook publishing at runtime.
+ * Does NOT require OAuth config (META_CONFIG_ID, META_REDIRECT_URI).
+ * Call this inside the Facebook publish path only — not for Instagram.
+ */
+export function requireFacebookPublishEnv(): void {
+  const required = ["META_APP_ID", "META_APP_SECRET", "TOKEN_ENCRYPTION_KEY"] as const;
+  const missing = required.filter((k) => !process.env[k]);
+  if (missing.length > 0) {
+    throw new Error(
+      `Missing required Facebook publishing environment variables: ${missing.join(", ")}. ` +
         `Check .env.example for the expected format.`,
     );
   }

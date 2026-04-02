@@ -23,7 +23,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt } from "@/lib/meta-token";
-import { requireMetaEnv } from "@/lib/env";
+import { requireFacebookPublishEnv } from "@/lib/env";
 
 const GRAPH_VERSION = "v19.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
@@ -102,7 +102,7 @@ function isExpiredTokenError(data: Record<string, unknown>): boolean {
 export async function refreshLongLivedToken(
   encryptedToken: string
 ): Promise<{ token: string; expiresAt: Date } | null> {
-  requireMetaEnv();
+  requireFacebookPublishEnv();
 
   let currentToken: string;
   try {
@@ -433,7 +433,9 @@ export interface ExecutePublishResult {
  * Only DB/system errors are thrown.
  */
 export async function executePublishJob(jobId: string): Promise<ExecutePublishResult> {
-  requireMetaEnv();
+  // Do NOT call requireMetaEnv() here — it would block Instagram publishing
+  // (which uses direct env vars) if Meta OAuth vars are missing.
+  // Facebook-specific env validation happens inside the Facebook path below.
 
   console.log(`\n[meta-publish] ═══ Starting publish for job ${jobId} ═══`);
 
@@ -509,14 +511,25 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
       continue;
     }
 
-    // ── Find active connection ──────────────────────────────────────────────
+    // ── Facebook path: validate env vars, then find active connection ────────
+    // This block is only reached when plat === "FACEBOOK".
+    // Instagram takes the early-return env-var path above and never gets here.
+    try {
+      requireFacebookPublishEnv();
+    } catch (err) {
+      const reason = `Facebook publishing requires META_APP_ID, META_APP_SECRET, and TOKEN_ENCRYPTION_KEY to be set. ${err instanceof Error ? err.message : String(err)}`;
+      console.error(`[meta-publish] FACEBOOK: ❌ ${reason}`);
+      results.push({ platform: "FACEBOOK", success: false, failureReason: reason });
+      continue;
+    }
+
     const connection = await prisma.metaConnection.findFirst({
       where: { platform: plat, isActive: true },
       orderBy: { updatedAt: "desc" },
     });
 
     if (!connection) {
-      const reason = `No active ${plat} connection found. Connect your account in Settings before publishing.`;
+      const reason = `No active FACEBOOK connection found. Connect your account in Settings before publishing.`;
       console.error(`[meta-publish] ${plat}: ❌ ${reason}`);
       results.push({ platform: plat, success: false, failureReason: reason });
       continue;
