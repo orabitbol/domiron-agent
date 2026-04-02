@@ -43,7 +43,7 @@ export function getEnv(key: KnownEnvKey): string {
   if (!value) {
     throw new Error(
       `Missing required environment variable: ${key}. ` +
-        `Check .env.example for the expected format.`
+        `Check .env.example for the expected format.`,
     );
   }
   return value;
@@ -66,7 +66,7 @@ export function requireMetaEnv(): void {
   if (missing.length > 0) {
     throw new Error(
       `Missing required Meta environment variables: ${missing.join(", ")}. ` +
-        `Check .env.example for the expected format.`
+        `Check .env.example for the expected format.`,
     );
   }
 }
