@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Facebook, Instagram, Link2Off, Loader2, AlertCircle, CheckCircle2, Link2 } from "lucide-react";
 import { toast } from "sonner";
