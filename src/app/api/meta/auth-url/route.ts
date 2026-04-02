@@ -5,11 +5,22 @@ import { requireMetaEnv } from "@/lib/env";
 
 const GRAPH_VERSION = "v19.0";
 
+// These are standard Facebook Login permissions required for this app's flow:
+//   pages_show_list          — list pages the user manages
+//   pages_read_engagement    — read page metadata (needed to fetch the page token)
+//   pages_manage_posts       — create posts on managed pages
+//   instagram_content_publish — publish media to an Instagram Business account
+//
+// NOTE: instagram_basic is intentionally ABSENT. It belongs to the deprecated
+// Instagram Login API and is NOT a valid scope for Facebook Login. Including it
+// causes Facebook to reject the entire OAuth request with "Invalid Scopes".
+//
+// instagram_content_publish requires the app to be in Live mode + App Review for
+// production use. In Development mode it works only for app admins/developers.
 const SCOPES = [
-  "pages_manage_posts",
-  "pages_read_engagement",
   "pages_show_list",
-  "instagram_basic",
+  "pages_read_engagement",
+  "pages_manage_posts",
   "instagram_content_publish",
 ].join(",");
 
