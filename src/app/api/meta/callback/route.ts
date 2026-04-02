@@ -36,6 +36,9 @@ export async function GET(request: NextRequest) {
 
   // ── CSRF state validation ──────────────────────────────────────────────────
   const storedState = request.cookies.get("meta_oauth_state")?.value;
+  console.log("[meta/callback] returned state from Facebook:", returnedState ?? "(missing)");
+  console.log("[meta/callback] stored state from cookie:", storedState ?? "(missing)");
+
   if (!storedState || !returnedState || storedState !== returnedState) {
     console.error(
       "[meta/callback] state mismatch — possible CSRF. stored=%s returned=%s",
@@ -46,6 +49,7 @@ export async function GET(request: NextRequest) {
     resp.cookies.delete("meta_oauth_state");
     return resp;
   }
+  console.log("[meta/callback] state validated OK");
 
   if (oauthError || !code) {
     const resp = settingsRedirect(request, { meta_error: "access_denied" });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Facebook, Instagram, Link2Off, Loader2, AlertCircle, CheckCircle2, Link2 } from "lucide-react";
 import { toast } from "sonner";
@@ -27,35 +27,15 @@ function daysUntilExpiry(expiresAt: string | null): string | null {
 // ─── ConnectButton ────────────────────────────────────────────────────────────
 
 function ConnectButton({ label }: { label: string }) {
-  const [isRedirecting, setIsRedirecting] = useState(false);
-
-  const handleConnect = async () => {
-    setIsRedirecting(true);
-    try {
-      const res = await fetch("/api/meta/auth-url");
-      if (!res.ok) throw new Error("שגיאה בקבלת כתובת ההתחברות");
-      const { url } = await res.json();
-      window.location.href = url;
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "שגיאה בהתחברות");
-      setIsRedirecting(false);
-    }
-  };
-
   return (
     <Button
       size="sm"
-      onClick={handleConnect}
-      disabled={isRedirecting}
       className="gap-2"
       style={{ backgroundColor: "#6B5CF6", color: "#ffffff" }}
+      onClick={() => { window.location.href = "/api/meta/auth-url"; }}
     >
-      {isRedirecting ? (
-        <Loader2 className="w-4 h-4 animate-spin" />
-      ) : (
-        <Link2 className="w-4 h-4" />
-      )}
-      {isRedirecting ? "מעביר..." : label}
+      <Link2 className="w-4 h-4" />
+      {label}
     </Button>
   );
 }
