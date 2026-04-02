@@ -475,6 +475,40 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
   for (const plat of platforms) {
     console.log(`\n[meta-publish] ── Processing platform: ${plat} ──`);
 
+    // ── Instagram: use direct env credentials if set ───────────────────────
+    // INSTAGRAM_USER_ID + INSTAGRAM_ACCESS_TOKEN bypass the MetaConnection
+    // DB lookup entirely. These env vars take priority over any stored OAuth
+    // connection. The token never leaves the server.
+    if (plat === "INSTAGRAM") {
+      const igUserId = process.env.INSTAGRAM_USER_ID;
+      const igToken = process.env.INSTAGRAM_ACCESS_TOKEN;
+
+      if (!igUserId || !igToken) {
+        const reason =
+          "INSTAGRAM_USER_ID and INSTAGRAM_ACCESS_TOKEN env vars are not set. " +
+          "Add them to your environment to enable direct Instagram publishing.";
+        console.error(`[meta-publish] INSTAGRAM: ❌ ${reason}`);
+        results.push({ platform: "INSTAGRAM", success: false, failureReason: reason });
+        continue;
+      }
+
+      console.log(`[meta-publish] INSTAGRAM: using direct env credentials (user ID: ${igUserId})`);
+      const result = await publishToInstagram(igUserId, igUserId, igToken, draftContent);
+
+      if (!result.success) {
+        console.error(`[meta-publish] INSTAGRAM: ❌ FAILED — ${result.failureReason}`);
+      } else {
+        console.log(
+          `[meta-publish] INSTAGRAM: ✅ SUCCESS — ` +
+          `externalPostId=${result.externalPostId ?? "none"} | ` +
+          `publishedUrl=${result.publishedUrl ?? "none"}`
+        );
+      }
+
+      results.push(result);
+      continue;
+    }
+
     // ── Find active connection ──────────────────────────────────────────────
     const connection = await prisma.metaConnection.findFirst({
       where: { platform: plat, isActive: true },
