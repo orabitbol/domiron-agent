@@ -22,7 +22,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  requireMetaEnv();
+  try {
+    requireMetaEnv();
+  } catch (err) {
+    console.error("[meta/callback] Meta env not configured:", err instanceof Error ? err.message : err);
+    return settingsRedirect(request, { meta_error: "server_error" });
+  }
 
   const { searchParams } = request.nextUrl;
   const code = searchParams.get("code");

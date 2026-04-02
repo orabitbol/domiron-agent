@@ -30,7 +30,12 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  requireMetaEnv();
+  try {
+    requireMetaEnv();
+  } catch (err) {
+    console.error("[/api/meta/auth-url] Meta env not configured:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Meta API credentials are not configured" }, { status: 500 });
+  }
 
   // Generate a random CSRF state token.
   // It is stored in an HttpOnly cookie and validated in the OAuth callback.
