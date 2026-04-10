@@ -129,6 +129,14 @@ export function QueueTable({ jobs }: QueueTableProps) {
         }
       }
 
+      // Hard guard: POST and CAROUSEL must have images
+      if ((fmt === "STATIC" || fmt === "CAROUSEL") && (!slideImageUrls || slideImageUrls.length === 0)) {
+        toast.error("שגיאה: לא נוצרו תמונות לפרסום");
+        setCarouselProgress(null);
+        setConfirmId(null);
+        return;
+      }
+
       const response: MarkPublishedResponse = await markPublished(
         slideImageUrls ? { id: confirmId, slideImageUrls } : confirmId
       );
@@ -305,7 +313,7 @@ export function QueueTable({ jobs }: QueueTableProps) {
                       </Button>
                     )}
                     {job.status === "PUBLISHED" && job.publishedUrl &&
-                      /^https:\/\/(www\.)?facebook\.com\//.test(job.publishedUrl) && (
+                      /^https:\/\/(www\.)?(facebook|instagram)\.com\//.test(job.publishedUrl) && (
                       <a
                         href={job.publishedUrl}
                         target="_blank"

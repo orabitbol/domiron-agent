@@ -223,21 +223,37 @@ async function publishToFacebook(
       return { platform: "FACEBOOK", success: false, failureReason: errMsg };
     }
 
-    // /photos returns: { id: "photo_id" } or { id: "photo_id", post_id: "page_id_post_num" }
-    // Use post_id for the permalink if available; fall back to id.
-    const postId = ((data.post_id ?? data.id) as string) || "";
-    const parts = postId.split("_");
-    const publishedUrl =
-      parts.length === 2
-        ? `https://www.facebook.com/${parts[0]}/posts/${parts[1]}`
-        : postId
-        ? `https://www.facebook.com/${postId}`
-        : undefined;
+    // /photos returns: { id: "PHOTO_ID", post_id: "PAGE_ID_POST_ID" }
+    // post_id has the compound ID for permalink. If absent, use photo URL.
+    const postId = (data.post_id as string) || "";
+    const photoId = (data.id as string) || "";
 
-    console.log(`[Facebook] â Photo published. post_id=${postId}${publishedUrl ? ` | url=${publishedUrl}` : ""}`);
-    return { platform: "FACEBOOK", success: true, externalPostId: postId || undefined, publishedUrl };
+    let publishedUrl: string | undefined;
+    if (postId && postId.includes("_")) {
+      const parts = postId.split("_");
+      publishedUrl = `https://www.facebook.com/${parts[0]}/posts/${parts[1]}`;
+    } else if (photoId) {
+      publishedUrl = `https://www.facebook.com/photo/?fbid=${photoId}`;
+    }
+
+    console.log(`[Facebook] Photo published. photo_id=${photoId} post_id=${postId}${publishedUrl ? ` | url=${publishedUrl}` : ""}`);
+    const externalId = postId || photoId;
+    if (!publishedUrl) {
+      console.error('[Facebook] Photo published but no valid URL could be constructed');
+      return { platform: "FACEBOOK", success: false, failureReason: "Facebook returned no usable post URL" };
+    }
+    return { platform: "FACEBOOK", success: true, externalPostId: externalId || undefined, publishedUrl };
   } else {
     // ââ Text / feed post ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+    // Block text-only posts for STATIC format — POST must have an image
+    if (draft.format === "STATIC") {
+      return {
+        platform: "FACEBOOK",
+        success: false,
+        failureReason: "POST format requires a generated image but mediaUrl is missing. Ensure image generation ran before publish.",
+      };
+    }
+
     console.log(`[Facebook] Publishing text/feed post to page "${pageName}" (${pageId})`);
     console.log(`[Facebook] message: ${message.slice(0, 80)}${message.length > 80 ? "â¦" : ""}`);
 
@@ -866,7 +882,8 @@ export async function executePublishJob(
   const failResults = results.filter((r) => !r.success);
 
   const externalPostId = successResults.map((r) => r.externalPostId).filter(Boolean).join(", ") || null;
-  const publishedUrl = successResults.map((r) => r.publishedUrl).filter(Boolean).join(", ") || null;
+  // Use the first valid Facebook URL (don't join multiple — breaks URL validation)
+  const publishedUrl = successResults.map((r) => r.publishedUrl).filter(Boolean)[0] || null;
   const failureReason =
     failResults.length > 0
       ? failResults.map((r) => `[${r.platform}] ${r.failureReason}`).join("; ")
