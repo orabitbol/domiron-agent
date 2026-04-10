@@ -3,20 +3,18 @@
 /**
  * Export engine hook.
  *
- * Renders each export frame into a hidden offscreen container,
- * captures it with html-to-image at the target resolution,
+ * Renders each export frame using the production-hardened captureFrameAsPng(),
  * bundles all PNGs into a zip with jszip, and triggers download.
  *
  * For single-image exports (POST), downloads the PNG directly.
  */
 
 import { useState, useCallback, type ReactElement } from "react";
-import { createRoot } from "react-dom/client";
-import { toPng } from "html-to-image";
 import JSZip from "jszip";
 import type { DraftFull } from "@/hooks/use-drafts";
 import { ContentFormat } from "@/types";
 import { type ContentAngle } from "./preview-primitives";
+import { captureFrameAsPng } from "@/lib/capture-frame";
 import {
   EXPORT_SIZES,
   PostExportFrame,
@@ -45,69 +43,7 @@ interface ExportState {
   currentFile: string;
 }
 
-// ─── Capture helper ──────────────────────────────────────────────────────────
-
-/**
- * Renders a React element into a hidden offscreen container,
- * captures it as a PNG data URL, then cleans up.
- */
-async function captureFrameAsPng(
-  element: ReactElement,
-  width: number,
-  height: number,
-  targetWidth: number,
-  targetHeight: number,
-): Promise<string> {
-  // Create offscreen container
-  const container = document.createElement("div");
-  container.style.cssText = `
-    position: fixed;
-    left: -10000px;
-    top: 0;
-    width: ${width}px;
-    height: ${height}px;
-    overflow: hidden;
-    pointer-events: none;
-    z-index: -1;
-  `;
-  document.body.appendChild(container);
-
-  // Render the React element
-  const root = createRoot(container);
-
-  await new Promise<void>((resolve) => {
-    root.render(element);
-    // Wait for two animation frames to ensure paint
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-  });
-
-  // Capture with html-to-image
-  const captureTarget = container.firstElementChild as HTMLElement;
-  if (!captureTarget) {
-    root.unmount();
-    document.body.removeChild(container);
-    throw new Error("Export frame did not render");
-  }
-
-  const pixelRatio = targetWidth / width;
-  const dataUrl = await toPng(captureTarget, {
-    width,
-    height,
-    pixelRatio,
-    cacheBust: true,
-    // Skip elements that use backdrop-filter (causes CORS issues in some browsers)
-    filter: (node: HTMLElement) => {
-      // Keep all nodes — backdrop-filter renders acceptably in most browsers
-      return true;
-    },
-  });
-
-  // Cleanup
-  root.unmount();
-  document.body.removeChild(container);
-
-  return dataUrl;
-}
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Convert a data URL to a Uint8Array for zip inclusion. */
 function dataUrlToUint8Array(dataUrl: string): Uint8Array {
@@ -227,11 +163,13 @@ export function useExportAssets(draft: DraftFull, angle: ContentAngle) {
         const job = jobs[0];
         setState({ isExporting: true, progress: 0.5, currentFile: job.filename });
 
-        const dataUrl = await captureFrameAsPng(
-          job.element, job.width, job.height, job.targetWidth, job.targetHeight,
-        );
+        const dataUrl = await captureFrameAsPng(job.element, {
+          width: job.width,
+          height: job.height,
+          targetWidth: job.targetWidth,
+          label: job.filename,
+        });
 
-        // Convert to blob and download
         const response = await fetch(dataUrl);
         const blob = await response.blob();
         downloadBlob(blob, job.filename);
@@ -251,9 +189,12 @@ export function useExportAssets(draft: DraftFull, angle: ContentAngle) {
           currentFile: job.filename,
         });
 
-        const dataUrl = await captureFrameAsPng(
-          job.element, job.width, job.height, job.targetWidth, job.targetHeight,
-        );
+        const dataUrl = await captureFrameAsPng(job.element, {
+          width: job.width,
+          height: job.height,
+          targetWidth: job.targetWidth,
+          label: job.filename,
+        });
         zip.file(job.filename, dataUrlToUint8Array(dataUrl));
       }
 
