@@ -86,7 +86,7 @@ export function CarouselPreview({ draft, angle = "default" }: CarouselPreviewPro
 
   return (
     <div className="space-y-3" style={{ maxWidth: 420, width: "100%" }}>
-      <PreviewFrame aspect="1/1" maxWidth={420} angle={angle}>
+      <PreviewFrame aspect="1/1" maxWidth={420} angle={angle} visualDirection={draft.visualDirection}>
         <FormatBadge label={`CAROUSEL ${current + 1}/${slides.length}`} angle={angle} />
         <Atmosphere angle={angle} />
         <GradientOverlay position="full" angle={angle} />

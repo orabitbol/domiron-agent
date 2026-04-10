@@ -45,7 +45,7 @@ export function PostExportFrame({ draft, angle }: PostExportFrameProps) {
 
   return (
     <div style={{ width: EXPORT_SIZES.square.width, height: EXPORT_SIZES.square.height }}>
-      <PreviewFrame aspect="1/1" maxWidth={EXPORT_SIZES.square.width} angle={angle}>
+      <PreviewFrame aspect="1/1" maxWidth={EXPORT_SIZES.square.width} angle={angle} visualDirection={draft.visualDirection}>
         <Atmosphere angle={angle} />
         <GradientOverlay position="bottom" angle={angle} />
 
@@ -107,7 +107,7 @@ export function CarouselSlideExportFrame({
 
   return (
     <div style={{ width: EXPORT_SIZES.square.width, height: EXPORT_SIZES.square.height }}>
-      <PreviewFrame aspect="1/1" maxWidth={EXPORT_SIZES.square.width} angle={angle}>
+      <PreviewFrame aspect="1/1" maxWidth={EXPORT_SIZES.square.width} angle={angle} visualDirection={draft.visualDirection}>
         <Atmosphere angle={angle} />
         <GradientOverlay position="full" angle={angle} />
 
@@ -154,7 +154,7 @@ export function StoryFrameExportFrame({ draft, angle, frame, isFirst }: StoryFra
 
   return (
     <div style={{ width: EXPORT_SIZES.vertical.width, height: EXPORT_SIZES.vertical.height }}>
-      <PreviewFrame aspect="9/16" maxWidth={EXPORT_SIZES.vertical.width} angle={angle}>
+      <PreviewFrame aspect="9/16" maxWidth={EXPORT_SIZES.vertical.width} angle={angle} visualDirection={draft.visualDirection}>
         <Atmosphere angle={angle} />
         <GradientOverlay position="full" angle={angle} />
 
@@ -208,7 +208,7 @@ export function ReelSceneExportFrame({ draft, angle, scene, isFirst }: ReelScene
 
   return (
     <div style={{ width: EXPORT_SIZES.vertical.width, height: EXPORT_SIZES.vertical.height }}>
-      <PreviewFrame aspect="9/16" maxWidth={EXPORT_SIZES.vertical.width} angle={angle}>
+      <PreviewFrame aspect="9/16" maxWidth={EXPORT_SIZES.vertical.width} angle={angle} visualDirection={draft.visualDirection}>
         <Atmosphere angle={angle} />
         <GradientOverlay position="full" angle={angle} />
 

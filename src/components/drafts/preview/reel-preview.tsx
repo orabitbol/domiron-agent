@@ -67,7 +67,7 @@ export function ReelPreview({ draft, angle = "default" }: ReelPreviewProps) {
   return (
     <div className="space-y-3" style={{ maxWidth: 420, width: "100%" }}>
       {/* Hero card — 9:16 mini-preview */}
-      <PreviewFrame aspect="9/16" maxWidth={280} angle={angle}>
+      <PreviewFrame aspect="9/16" maxWidth={280} angle={angle} visualDirection={draft.visualDirection}>
         <FormatBadge label="REEL" angle={angle} />
         <Atmosphere angle={angle} />
         <GradientOverlay position="full" angle={angle} />

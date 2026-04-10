@@ -60,7 +60,7 @@ export function StoryPreview({ draft, angle = "default" }: StoryPreviewProps) {
 
   return (
     <div className="space-y-3" style={{ maxWidth: 280, width: "100%" }}>
-      <PreviewFrame aspect="9/16" maxWidth={280} angle={angle}>
+      <PreviewFrame aspect="9/16" maxWidth={280} angle={angle} visualDirection={draft.visualDirection}>
         <FormatBadge label="STORY" angle={angle} />
         <Atmosphere angle={angle} />
         <GradientOverlay position="full" angle={angle} />

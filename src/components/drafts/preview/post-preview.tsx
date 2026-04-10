@@ -32,7 +32,7 @@ export function PostPreview({ draft, angle = "default" }: PostPreviewProps) {
   const theme = getAngleTheme(angle);
 
   return (
-    <PreviewFrame aspect="1/1" angle={angle}>
+    <PreviewFrame aspect="1/1" angle={angle} visualDirection={draft.visualDirection}>
       <FormatBadge label="POST" angle={angle} />
       <Atmosphere angle={angle} />
       <GradientOverlay position="bottom" angle={angle} />

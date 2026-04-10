@@ -325,8 +325,8 @@ export function PreviewFrame({
         `,
       }}
     >
-      {/* Layer 1: Background image (angle-specific) + dark overlay */}
-      <BackgroundImage angle={angle} />
+      {/* Layer 1: Background image (real game screenshot) + dark overlay */}
+      <BackgroundImage angle={angle} visualDirection={visualDirection} />
       {/* Layer 2+: Atmosphere, GradientOverlay, content (rendered by caller) */}
       {children}
     </div>
