@@ -57,8 +57,8 @@ function waitFrames(n: number): Promise<void> {
 }
 
 /** Wait for all CSS background images inside a DOM subtree to load. */
-function waitForBackgroundImages(root: HTMLElement, timeoutMs: number): Promise<void> {
-  return new Promise((resolve) => {
+function waitForBackgroundImages(root: HTMLElement, timeoutMs: number, label: string): Promise<void> {
+  return new Promise((resolve, reject) => {
     const urls: string[] = [];
 
     // Walk the DOM tree and collect all background-image URLs
@@ -68,11 +68,9 @@ function waitForBackgroundImages(root: HTMLElement, timeoutMs: number): Promise<
       if (node instanceof HTMLElement) {
         const bg = getComputedStyle(node).backgroundImage;
         if (bg && bg !== "none") {
-          // Extract URL from css value like url("...")
           const matches = bg.matchAll(/url\(["']?([^"')]+)["']?\)/g);
           for (const match of matches) {
             const url = match[1];
-            // Skip data URIs (already inline) and gradient values
             if (url && !url.startsWith("data:") && !url.startsWith("linear-") && !url.startsWith("radial-")) {
               urls.push(url);
             }
@@ -87,31 +85,53 @@ function waitForBackgroundImages(root: HTMLElement, timeoutMs: number): Promise<
       return;
     }
 
-    console.log(`[capture] Waiting for ${urls.length} background image(s) to load...`);
+    console.log(`[capture:${label}] Waiting for ${urls.length} background image(s) to load...`);
 
-    let settled = 0;
+    let done = false;
+    let loaded = 0;
     const total = urls.length;
+    const failedUrls: string[] = [];
+
     const timer = setTimeout(() => {
-      console.warn(`[capture] Background image load timed out after ${timeoutMs}ms (${settled}/${total} loaded)`);
-      resolve(); // Proceed anyway — partial render is better than no render
+      if (done) return;
+      done = true;
+      const msg =
+        `[capture:${label}] FATAL: Background image load timed out after ${timeoutMs}ms. ` +
+        `${loaded}/${total} loaded. ` +
+        `Still waiting for: ${urls.filter((u) => !loadedSet.has(u)).join(", ")}`;
+      console.error(msg);
+      reject(new Error(msg));
     }, timeoutMs);
 
-    function check() {
-      settled++;
-      if (settled >= total) {
+    const loadedSet = new Set<string>();
+
+    function settle(url: string, success: boolean) {
+      if (done) return;
+      if (success) {
+        loadedSet.add(url);
+        loaded++;
+      } else {
+        failedUrls.push(url);
+        done = true;
         clearTimeout(timer);
-        console.log(`[capture] All ${total} background images loaded.`);
+        const msg =
+          `[capture:${label}] FATAL: Background image failed to load: ${url}`;
+        console.error(msg);
+        reject(new Error(msg));
+        return;
+      }
+      if (loaded + failedUrls.length >= total) {
+        done = true;
+        clearTimeout(timer);
+        console.log(`[capture:${label}] All ${total} background images loaded.`);
         resolve();
       }
     }
 
     for (const url of urls) {
       const img = new Image();
-      img.onload = check;
-      img.onerror = () => {
-        console.warn(`[capture] Background image failed to load: ${url}`);
-        check(); // Count as settled so we don't hang
-      };
+      img.onload = () => settle(url, true);
+      img.onerror = () => settle(url, false);
       img.src = url;
     }
   });
@@ -197,7 +217,7 @@ export async function captureFrameAsPng(
     throw new Error(`${tag} Export frame did not render — no child element found`);
   }
 
-  await waitForBackgroundImages(captureTarget, IMAGE_LOAD_TIMEOUT_MS);
+  await waitForBackgroundImages(captureTarget, IMAGE_LOAD_TIMEOUT_MS, label);
 
   // 6. Extra settle after images load
   await waitFrames(2);
