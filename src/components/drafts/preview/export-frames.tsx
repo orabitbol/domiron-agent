@@ -116,23 +116,16 @@ export function CarouselSlideExportFrame({
           style={{ background: `linear-gradient(90deg, transparent, ${theme.accent}40, transparent)` }}
         />
 
-        <div className="absolute inset-0 flex flex-col justify-center p-8 gap-4 z-[1]">
+        <div className="absolute inset-0 flex flex-col justify-center items-center text-center p-8 gap-4 z-[1]">
           <ArcLabel angle={angle}>{label}</ArcLabel>
           <AccentLine angle={angle} />
 
-          {isLast && slide.isArc ? (
-            <>
-              <HookText size="md" glowColor={theme.glow}>{slide.text}</HookText>
-              {draft.cta && (
-                <div className="pt-1">
-                  <CtaBadge angle={angle}>{draft.cta}</CtaBadge>
-                </div>
-              )}
-            </>
-          ) : isFirst ? (
-            <HookText size="lg" glowColor={theme.glow}>{slide.text}</HookText>
-          ) : (
-            <CaptionText maxLines={5}>{slide.text}</CaptionText>
+          <HookText size={isFirst ? "lg" : "md"} glowColor={theme.glow}>{slide.text}</HookText>
+
+          {isLast && slide.isArc && draft.cta && (
+            <div className="pt-1">
+              <CtaBadge angle={angle}>{draft.cta}</CtaBadge>
+            </div>
           )}
         </div>
       </PreviewFrame>

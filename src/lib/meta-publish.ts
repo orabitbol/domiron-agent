@@ -56,20 +56,33 @@ interface DraftContent {
 
 // âââ Caption builders âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
+/** Clean text for Facebook: collapse excessive blank lines, trim whitespace. */
+function sanitizeForFacebook(text: string): string {
+  return text
+    .replace(/\r\n/g, "\n")        // normalize line endings
+    .replace(/\n{3,}/g, "\n\n")    // collapse 3+ newlines to 2
+    .replace(/[ \t]+$/gm, "")      // strip trailing spaces per line
+    .trim();
+}
+
 function buildFacebookMessage(draft: DraftContent): string {
   const parts: string[] = [];
-  if (draft.facebookCaption) parts.push(draft.facebookCaption);
-  else if (draft.hook) parts.push(draft.hook);
+  if (draft.facebookCaption) parts.push(draft.facebookCaption.trim());
+  else if (draft.hook) parts.push(draft.hook.trim());
   if (draft.hashtags.length > 0) {
-    parts.push(draft.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" "));
+    const tags = draft.hashtags
+      .map((h) => h.trim().replace(/^#+/, ""))  // strip all leading #
+      .filter(Boolean)
+      .map((h) => `#${h}`);
+    if (tags.length > 0) parts.push(tags.join(" "));
   }
-  return parts.join("\n\n");
+  return sanitizeForFacebook(parts.join("\n\n"));
 }
 
 function buildInstagramCaption(draft: DraftContent): string {
   const parts: string[] = [];
-  if (draft.instagramCaption) parts.push(draft.instagramCaption);
-  else if (draft.hook) parts.push(draft.hook);
+  if (draft.instagramCaption) parts.push(draft.instagramCaption.trim());
+  else if (draft.hook) parts.push(draft.hook.trim());
   if (draft.hashtags.length > 0) {
     parts.push(draft.hashtags.map((h) => (h.startsWith("#") ? h : `#${h}`)).join(" "));
   }

@@ -288,7 +288,8 @@ export function QueueTable({ jobs }: QueueTableProps) {
                         נסה שוב
                       </Button>
                     )}
-                    {job.status === "PUBLISHED" && job.publishedUrl && (
+                    {job.status === "PUBLISHED" && job.publishedUrl &&
+                      /^https:\/\/(www\.)?facebook\.com\//.test(job.publishedUrl) && (
                       <a
                         href={job.publishedUrl}
                         target="_blank"
