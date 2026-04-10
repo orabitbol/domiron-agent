@@ -111,6 +111,14 @@ function isExpiredTokenError(data: Record<string, unknown>): boolean {
  * Code 10  → API permission denied (missing permission in the token scope)
  * Code 200 → Permissions error (token does not have the required permission)
  */
+
+/** Validate that a publishedUrl is a real, clean Facebook/Instagram URL. */
+function isValidPublishedUrl(url: string | undefined | null): url is string {
+  if (!url) return false;
+  if (url.includes("%23") || url.includes("#")) return false;
+  return /^https:\/\/(www\.)?(facebook|instagram)\.com\/[a-zA-Z0-9_.\/?=&%-]+$/.test(url);
+}
+
 function isPermissionError(data: Record<string, unknown>): boolean {
   if (!data.error || typeof data.error !== "object") return false;
   const err = data.error as Record<string, unknown>;
@@ -292,6 +300,10 @@ async function publishToFacebook(
         : undefined;
 
     console.log(`[Facebook] â Feed post published. id=${rawId}${publishedUrl ? ` | url=${publishedUrl}` : ""}`);
+    if (!publishedUrl) {
+      console.error('[Facebook] Feed post published but no valid URL could be constructed');
+      return { platform: "FACEBOOK", success: false, failureReason: "Facebook returned no usable post URL" };
+    }
     return { platform: "FACEBOOK", success: true, externalPostId: rawId || undefined, publishedUrl };
   }
 }
@@ -410,6 +422,10 @@ async function publishCarouselToFacebook(
         : undefined;
 
   console.log(`[Facebook/Carousel] Multi-image carousel published. id=${rawId}${publishedUrl ? ` | url=${publishedUrl}` : ""}`);
+  if (!publishedUrl) {
+    console.error('[Facebook/Carousel] Multi-image post published but no valid URL');
+    return { platform: "FACEBOOK", success: false, failureReason: "Facebook returned no usable carousel post URL" };
+  }
   return { platform: "FACEBOOK", success: true, externalPostId: rawId || undefined, publishedUrl };
 }
 
@@ -882,19 +898,34 @@ export async function executePublishJob(
   const failResults = results.filter((r) => !r.success);
 
   const externalPostId = successResults.map((r) => r.externalPostId).filter(Boolean).join(", ") || null;
-  // Use the first valid Facebook URL (don't join multiple — breaks URL validation)
-  const publishedUrl = successResults.map((r) => r.publishedUrl).filter(Boolean)[0] || null;
+  // Use the first valid Facebook URL — validate before storing
+  const rawPublishedUrl = successResults.map((r) => r.publishedUrl).filter(Boolean)[0] || null;
+  const publishedUrl = isValidPublishedUrl(rawPublishedUrl) ? rawPublishedUrl : null;
+  if (rawPublishedUrl && !publishedUrl) {
+    console.warn(`[meta-publish] publishedUrl rejected as invalid: ${rawPublishedUrl}`);
+  }
+
+  // If API said success but no valid URL, downgrade to FAILED
+  const finalStatus: "PUBLISHED" | "FAILED" =
+    allSucceeded && publishedUrl ? "PUBLISHED" : "FAILED";
+
+  if (allSucceeded && !publishedUrl) {
+    console.error("[meta-publish] All platforms reported success but no valid publishedUrl — downgrading to FAILED");
+  }
+
   const failureReason =
     failResults.length > 0
       ? failResults.map((r) => `[${r.platform}] ${r.failureReason}`).join("; ")
-      : null;
+      : !publishedUrl && allSucceeded
+        ? "Publish API returned success but no valid Facebook URL was produced"
+        : null;
 
   // ââ Persist to DB âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   await prisma.publishJob.update({
     where: { id: jobId },
     data: {
-      status: overallStatus,
-      publishedAt: anySucceeded ? new Date() : null,
+      status: finalStatus,
+      publishedAt: finalStatus === "PUBLISHED" ? new Date() : null,
       publishMethod: "MANUAL",
       externalPostId,
       publishedUrl,
@@ -903,9 +934,9 @@ export async function executePublishJob(
   });
 
   console.log(
-    `\n[meta-publish] âââ Job ${jobId} complete: ${overallStatus} ` +
+    `\n[meta-publish] âââ Job ${jobId} complete: ${finalStatus} ` +
     `(${results.filter((r) => r.success).length}/${results.length} platforms succeeded) âââ\n`
   );
 
-  return { overallStatus, results };
+  return { overallStatus: finalStatus, results };
 }
