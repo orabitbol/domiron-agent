@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">
+  <defs>
+    <radialGradient id="e-bg" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#1a1408"/>
+      <stop offset="100%" stop-color="#060504"/>
+    </radialGradient>
+    <radialGradient id="e-glow" cx="50%" cy="50%" r="40%">
+      <stop offset="0%" stop-color="#d4a843" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#d4a843" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="e-glow2" cx="35%" cy="70%" r="30%">
+      <stop offset="0%" stop-color="#f0c85a" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#f0c85a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="e-beam" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#d4a843" stop-opacity="0.08"/>
+      <stop offset="50%" stop-color="#d4a843" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="#d4a843" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" fill="url(#e-bg)"/>
+  <rect width="800" height="800" fill="url(#e-glow)"/>
+  <rect width="800" height="800" fill="url(#e-glow2)"/>
+  <!-- Gold beam from top -->
+  <polygon points="340,0 460,0 520,800 280,800" fill="url(#e-beam)"/>
+  <!-- Vault silhouette -->
+  <rect x="250" y="580" width="300" height="220" rx="8" fill="#0d0a04" opacity="0.6"/>
+  <rect x="270" y="600" width="260" height="180" rx="4" fill="#0a0804" opacity="0.4"/>
+  <circle cx="400" cy="680" r="25" fill="none" stroke="#d4a843" stroke-width="2" opacity="0.12"/>
+  <circle cx="400" cy="680" r="8" fill="#d4a843" opacity="0.08"/>
+  <!-- Scattered coins -->
+  <ellipse cx="180" cy="350" rx="18" ry="16" fill="#d4a843" opacity="0.06" transform="rotate(-15 180 350)"/>
+  <ellipse cx="620" cy="280" rx="14" ry="12" fill="#d4a843" opacity="0.07" transform="rotate(10 620 280)"/>
+  <ellipse cx="500" cy="450" rx="12" ry="10" fill="#f0c85a" opacity="0.05" transform="rotate(-8 500 450)"/>
+  <ellipse cx="300" cy="250" rx="10" ry="8" fill="#d4a843" opacity="0.06"/>
+  <ellipse cx="150" cy="550" rx="16" ry="14" fill="#b8912e" opacity="0.05" transform="rotate(20 150 550)"/>
+  <ellipse cx="680" cy="500" rx="11" ry="9" fill="#d4a843" opacity="0.06"/>
+  <!-- Gold dust particles -->
+  <circle cx="320" cy="200" r="1.5" fill="#f0c85a" opacity="0.3"/>
+  <circle cx="480" cy="320" r="1" fill="#d4a843" opacity="0.25"/>
+  <circle cx="220" cy="480" r="1.5" fill="#f0c85a" opacity="0.2"/>
+  <circle cx="580" cy="180" r="1" fill="#d4a843" opacity="0.3"/>
+  <circle cx="400" cy="400" r="2" fill="#f0c85a" opacity="0.15"/>
+  <circle cx="650" cy="600" r="1" fill="#d4a843" opacity="0.2"/>
+</svg>

@@ -169,6 +169,117 @@ export function getAngleTheme(angle: ContentAngle): AngleTheme {
   return ANGLE_THEMES[angle];
 }
 
+// ─── Background image layer ──────────────────────────────────────────────────
+// Uses real Domiron game screenshots from /public/screenImage/.
+//
+// Two-level resolution:
+//   1. Angle-level default: each ContentAngle maps to a primary screenshot
+//   2. Keyword-level override: specific words in visual_direction can pick
+//      a more precise screenshot (e.g. "חנות" → shop.png instead of bank.png)
+//
+// To add new screenshots: drop files in /public/screenImage/ and add
+// entries to ANGLE_BG_DEFAULTS or KEYWORD_BG_OVERRIDES below.
+
+const FALLBACK_IMAGE = "/screenImage/deasboard.png";
+
+/** Primary screenshot per angle. */
+const ANGLE_BG_DEFAULTS: Record<ContentAngle, string> = {
+  battle: "/screenImage/training.png",
+  economy: "/screenImage/bank.png",
+  spy: "/screenImage/map.png",
+  tribe: "/screenImage/clan.png",
+  competition: "/screenImage/prize.png",
+  default: "/screenImage/deasboard.png",
+};
+
+/**
+ * Keyword overrides — checked against the raw visual_direction text.
+ * If a keyword matches, its image wins over the angle default.
+ * Checked in order; first match wins.
+ */
+const KEYWORD_BG_OVERRIDES: { pattern: RegExp; image: string }[] = [
+  { pattern: /חנות|shop|נשק|ציוד|שריון|arsenal/, image: "/screenImage/shop.png" },
+  { pattern: /אימון|training|גיוס|recruit/, image: "/screenImage/training.png" },
+  { pattern: /בנק|bank|הפקד|ריבית|deposit/, image: "/screenImage/bank.png" },
+  { pattern: /שבט|clan|tribe|מועצ|לחש/, image: "/screenImage/clan.png" },
+  { pattern: /מפה|map|טריטוריה|territory|עיר|city/, image: "/screenImage/map.png" },
+  { pattern: /אוכלוסי|population|גידול|growth/, image: "/screenImage/population.png" },
+  { pattern: /עבד|slave|worker|עובד|ייצור|production/, image: "/screenImage/working.png" },
+  { pattern: /פרס|prize|הישג|achievement|שלל|reward/, image: "/screenImage/prize.png" },
+  { pattern: /דירוג|rank|leader|crown|כתר/, image: "/screenImage/prize.png" },
+];
+
+/** Background position tuning per image so the most interesting part is visible. */
+const BG_POSITIONS: Record<string, string> = {
+  "/screenImage/training.png": "center 30%",
+  "/screenImage/bank.png": "center 40%",
+  "/screenImage/shop.png": "center 35%",
+  "/screenImage/clan.png": "center 30%",
+  "/screenImage/map.png": "center center",
+  "/screenImage/population.png": "center 40%",
+  "/screenImage/working.png": "center 35%",
+  "/screenImage/prize.png": "center 30%",
+  "/screenImage/deasboard.png": "center 35%",
+  "/screenImage/background-game.png": "center center",
+};
+
+/** Resolve the best screenshot for a given angle + raw visual_direction. */
+function resolveBackgroundImage(angle: ContentAngle, visualDirection?: string | null): string {
+  // Try keyword overrides first (more specific wins)
+  if (visualDirection) {
+    const text = visualDirection.toLowerCase();
+    for (const { pattern, image } of KEYWORD_BG_OVERRIDES) {
+      if (pattern.test(text)) return image;
+    }
+  }
+  // Fall back to angle default
+  return ANGLE_BG_DEFAULTS[angle] ?? FALLBACK_IMAGE;
+}
+
+interface BackgroundImageProps {
+  angle: ContentAngle;
+  visualDirection?: string | null;
+}
+
+/**
+ * Full-bleed background image for a preview frame.
+ * Renders the real game screenshot + a dark overlay on top.
+ * Placed BEFORE Atmosphere/GradientOverlay in the layer stack.
+ */
+function BackgroundImage({ angle, visualDirection }: BackgroundImageProps) {
+  const src = resolveBackgroundImage(angle, visualDirection);
+  const position = BG_POSITIONS[src] ?? "center center";
+
+  return (
+    <>
+      {/* Background image — real game screenshot, covers full frame */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage: `url(${src})`,
+          backgroundSize: "cover",
+          backgroundPosition: position,
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+      {/* Dark overlay — ensures text readability over bright screenshots */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `
+            linear-gradient(180deg,
+              rgba(6,8,16,0.60) 0%,
+              rgba(6,8,16,0.45) 35%,
+              rgba(6,8,16,0.50) 65%,
+              rgba(6,8,16,0.70) 100%
+            )
+          `,
+        }}
+      />
+    </>
+  );
+}
+
 // ─── PreviewFrame ────────────────────────────────────────────────────────────
 
 interface PreviewFrameProps {
@@ -180,6 +291,8 @@ interface PreviewFrameProps {
   maxWidth?: number;
   /** Content angle for themed background (auto-detected if not provided) */
   angle?: ContentAngle;
+  /** Raw visual_direction text for keyword-level background selection */
+  visualDirection?: string | null;
 }
 
 export function PreviewFrame({
@@ -188,6 +301,7 @@ export function PreviewFrame({
   className = "",
   maxWidth = 420,
   angle = "default",
+  visualDirection,
 }: PreviewFrameProps) {
   const theme = getAngleTheme(angle);
 
@@ -211,6 +325,9 @@ export function PreviewFrame({
         `,
       }}
     >
+      {/* Layer 1: Background image (angle-specific) + dark overlay */}
+      <BackgroundImage angle={angle} />
+      {/* Layer 2+: Atmosphere, GradientOverlay, content (rendered by caller) */}
       {children}
     </div>
   );
