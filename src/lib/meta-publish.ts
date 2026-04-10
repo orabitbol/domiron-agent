@@ -12,13 +12,13 @@
  *     (externalPostId, publishedUrl, failureReason, status)
  *
  * Platforms:
- *  FACEBOOK → POST /{page_id}/feed  (text)
+ *  FACEBOOK â POST /{page_id}/feed  (text)
  *             POST /{page_id}/photos (photo with caption)
  *
- *  INSTAGRAM → POST /{ig_user_id}/media         (step 1: create container)
+ *  INSTAGRAM â POST /{ig_user_id}/media         (step 1: create container)
  *              POST /{ig_user_id}/media_publish   (step 2: publish container)
  *
- * BOTH → runs Facebook then Instagram; overall status = PUBLISHED only if both succeed.
+ * BOTH â runs Facebook then Instagram; overall status = PUBLISHED only if both succeed.
  */
 
 import { prisma } from "@/lib/prisma";
@@ -27,11 +27,12 @@ import { requireFacebookPublishEnv } from "@/lib/env";
 
 const GRAPH_VERSION = "v19.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
+const IG_GRAPH_BASE = `https://graph.instagram.com/${GRAPH_VERSION}`;
 
 // Hours before tokenExpiresAt at which we proactively attempt a refresh.
 const REFRESH_WITHIN_HOURS = 24;
 
-// ─── Internal types ───────────────────────────────────────────────────────────
+// âââ Internal types âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 interface PlatformResult {
   platform: "FACEBOOK" | "INSTAGRAM";
@@ -49,7 +50,7 @@ interface DraftContent {
   mediaUrl: string | null;
 }
 
-// ─── Caption builders ─────────────────────────────────────────────────────────
+// âââ Caption builders âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function buildFacebookMessage(draft: DraftContent): string {
   const parts: string[] = [];
@@ -71,7 +72,7 @@ function buildInstagramCaption(draft: DraftContent): string {
   return parts.join("\n\n");
 }
 
-// ─── Meta error helpers ───────────────────────────────────────────────────────
+// âââ Meta error helpers âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 function extractMetaError(data: Record<string, unknown>): string {
   if (data.error && typeof data.error === "object") {
@@ -88,13 +89,13 @@ function isExpiredTokenError(data: Record<string, unknown>): boolean {
   return err.type === "OAuthException" && (err.code === 190 || err.code === "190");
 }
 
-// ─── Token refresh (exported for use in the refresh API route) ─────────────────
+// âââ Token refresh (exported for use in the refresh API route) âââââââââââââââââ
 
 /**
  * Exchanges a long-lived token for a fresh one via the fb_exchange_token grant.
  *
  * NOTE: Meta's token exchange endpoint requires the current token to be valid.
- * If the token is fully expired (past 60 days), this will also fail — in that
+ * If the token is fully expired (past 60 days), this will also fail â in that
  * case the user must re-run the OAuth flow from Settings.
  *
  * @returns new plaintext token + expiry, or null if the exchange fails.
@@ -141,7 +142,7 @@ export async function refreshLongLivedToken(
   return { token: data.access_token, expiresAt };
 }
 
-// ─── Facebook publishing ──────────────────────────────────────────────────────
+// âââ Facebook publishing ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 async function publishToFacebook(
   pageId: string,
@@ -162,10 +163,10 @@ async function publishToFacebook(
   }
 
   if (draft.mediaUrl) {
-    // ── Photo post ────────────────────────────────────────────────────────────
+    // ââ Photo post ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     console.log(`[Facebook] Publishing photo post to page "${pageName}" (${pageId})`);
     console.log(`[Facebook] image_url: ${draft.mediaUrl}`);
-    if (message) console.log(`[Facebook] caption: ${message.slice(0, 80)}${message.length > 80 ? "…" : ""}`);
+    if (message) console.log(`[Facebook] caption: ${message.slice(0, 80)}${message.length > 80 ? "â¦" : ""}`);
 
     const body: Record<string, string> = { url: draft.mediaUrl };
     if (message) body.caption = message;
@@ -180,7 +181,7 @@ async function publishToFacebook(
     });
 
     const data = (await res.json()) as Record<string, unknown>;
-    console.log(`[Facebook] POST /${pageId}/photos → ${res.status}:`, JSON.stringify(data));
+    console.log(`[Facebook] POST /${pageId}/photos â ${res.status}:`, JSON.stringify(data));
 
     if (!res.ok) {
       if (isExpiredTokenError(data)) {
@@ -200,12 +201,12 @@ async function publishToFacebook(
         ? `https://www.facebook.com/${postId}`
         : undefined;
 
-    console.log(`[Facebook] ✅ Photo published. post_id=${postId}${publishedUrl ? ` | url=${publishedUrl}` : ""}`);
+    console.log(`[Facebook] â Photo published. post_id=${postId}${publishedUrl ? ` | url=${publishedUrl}` : ""}`);
     return { platform: "FACEBOOK", success: true, externalPostId: postId || undefined, publishedUrl };
   } else {
-    // ── Text / feed post ──────────────────────────────────────────────────────
+    // ââ Text / feed post ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     console.log(`[Facebook] Publishing text/feed post to page "${pageName}" (${pageId})`);
-    console.log(`[Facebook] message: ${message.slice(0, 80)}${message.length > 80 ? "…" : ""}`);
+    console.log(`[Facebook] message: ${message.slice(0, 80)}${message.length > 80 ? "â¦" : ""}`);
 
     const res = await fetch(`${GRAPH_BASE}/${pageId}/feed`, {
       method: "POST",
@@ -217,7 +218,7 @@ async function publishToFacebook(
     });
 
     const data = (await res.json()) as Record<string, unknown>;
-    console.log(`[Facebook] POST /${pageId}/feed → ${res.status}:`, JSON.stringify(data));
+    console.log(`[Facebook] POST /${pageId}/feed â ${res.status}:`, JSON.stringify(data));
 
     if (!res.ok) {
       if (isExpiredTokenError(data)) {
@@ -236,12 +237,12 @@ async function publishToFacebook(
         ? `https://www.facebook.com/${rawId}`
         : undefined;
 
-    console.log(`[Facebook] ✅ Feed post published. id=${rawId}${publishedUrl ? ` | url=${publishedUrl}` : ""}`);
+    console.log(`[Facebook] â Feed post published. id=${rawId}${publishedUrl ? ` | url=${publishedUrl}` : ""}`);
     return { platform: "FACEBOOK", success: true, externalPostId: rawId || undefined, publishedUrl };
   }
 }
 
-// ─── Instagram publishing ─────────────────────────────────────────────────────
+// âââ Instagram publishing âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 async function publishToInstagram(
   igUserId: string,
@@ -264,7 +265,7 @@ async function publishToInstagram(
    */
   if (!draft.mediaUrl) {
     console.error(
-      `[Instagram] ❌ Cannot publish: draft.mediaUrl is null. ` +
+      `[Instagram] â Cannot publish: draft.mediaUrl is null. ` +
       `Instagram requires a public image URL. ` +
       `Set it via the agent intake 'media_url' field or an admin upload.`
     );
@@ -281,15 +282,15 @@ async function publishToInstagram(
   const caption = buildInstagramCaption(draft);
   console.log(`[Instagram] Publishing to @${igUsername} (IG user ID: ${igUserId})`);
   console.log(`[Instagram] image_url: ${draft.mediaUrl}`);
-  if (caption) console.log(`[Instagram] caption: ${caption.slice(0, 80)}${caption.length > 80 ? "…" : ""}`);
+  if (caption) console.log(`[Instagram] caption: ${caption.slice(0, 80)}${caption.length > 80 ? "â¦" : ""}`);
 
-  // ── Step 1: Create media container ───────────────────────────────────────
+  // ââ Step 1: Create media container âââââââââââââââââââââââââââââââââââââââ
   console.log(`[Instagram] Step 1/2: Creating media container...`);
 
   const containerBody: Record<string, string> = { image_url: draft.mediaUrl };
   if (caption) containerBody.caption = caption;
 
-  const containerRes = await fetch(`${GRAPH_BASE}/${igUserId}/media`, {
+  const containerRes = await fetch(`${IG_GRAPH_BASE}/${igUserId}/media`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -300,7 +301,7 @@ async function publishToInstagram(
 
   const containerData = (await containerRes.json()) as Record<string, unknown>;
   console.log(
-    `[Instagram] POST /${igUserId}/media → ${containerRes.status}:`,
+    `[Instagram] POST /${igUserId}/media â ${containerRes.status}:`,
     JSON.stringify(containerData)
   );
 
@@ -320,15 +321,15 @@ async function publishToInstagram(
     return {
       platform: "INSTAGRAM",
       success: false,
-      failureReason: "Container creation returned no id — cannot proceed to publish step.",
+      failureReason: "Container creation returned no id â cannot proceed to publish step.",
     };
   }
   console.log(`[Instagram] Container created. creation_id=${creationId}`);
 
-  // ── Step 2: Publish media container ──────────────────────────────────────
+  // ââ Step 2: Publish media container ââââââââââââââââââââââââââââââââââââââ
   console.log(`[Instagram] Step 2/2: Publishing media container...`);
 
-  const publishRes = await fetch(`${GRAPH_BASE}/${igUserId}/media_publish`, {
+  const publishRes = await fetch(`${IG_GRAPH_BASE}/${igUserId}/media_publish`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -339,7 +340,7 @@ async function publishToInstagram(
 
   const publishData = (await publishRes.json()) as Record<string, unknown>;
   console.log(
-    `[Instagram] POST /${igUserId}/media_publish → ${publishRes.status}:`,
+    `[Instagram] POST /${igUserId}/media_publish â ${publishRes.status}:`,
     JSON.stringify(publishData)
   );
 
@@ -359,30 +360,30 @@ async function publishToInstagram(
     return {
       platform: "INSTAGRAM",
       success: false,
-      failureReason: "Media publish returned no id — cannot verify post was created.",
+      failureReason: "Media publish returned no id â cannot verify post was created.",
     };
   }
 
-  // ── Step 3: Fetch permalink ────────────────────────────────────────────────
+  // ââ Step 3: Fetch permalink ââââââââââââââââââââââââââââââââââââââââââââââââ
   // The media_publish endpoint does not return the permalink directly.
   // Fetch it separately so we can store a clickable URL.
   let publishedUrl: string | undefined;
   try {
     console.log(`[Instagram] Fetching permalink for media_id=${mediaId}...`);
     const permalinkRes = await fetch(
-      `${GRAPH_BASE}/${mediaId}?fields=permalink`,
+      `${IG_GRAPH_BASE}/${mediaId}?fields=permalink`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     if (permalinkRes.ok) {
       const permalinkData = (await permalinkRes.json()) as Record<string, unknown>;
       publishedUrl = (permalinkData.permalink as string) || undefined;
-      console.log(`[Instagram] ✅ Published. media_id=${mediaId} | permalink=${publishedUrl ?? "(none)"}`);
+      console.log(`[Instagram] â Published. media_id=${mediaId} | permalink=${publishedUrl ?? "(none)"}`);
     } else {
-      // Permalink fetch is best-effort — the post was published even if this fails.
-      console.warn(`[Instagram] ⚠️ Published (media_id=${mediaId}) but permalink fetch returned ${permalinkRes.status}`);
+      // Permalink fetch is best-effort â the post was published even if this fails.
+      console.warn(`[Instagram] â ï¸ Published (media_id=${mediaId}) but permalink fetch returned ${permalinkRes.status}`);
     }
   } catch (err) {
-    console.warn(`[Instagram] ⚠️ Published (media_id=${mediaId}) but permalink fetch threw:`, err);
+    console.warn(`[Instagram] â ï¸ Published (media_id=${mediaId}) but permalink fetch threw:`, err);
   }
 
   return {
@@ -393,7 +394,7 @@ async function publishToInstagram(
   };
 }
 
-// ─── Token refresh with DB persistence ───────────────────────────────────────
+// âââ Token refresh with DB persistence âââââââââââââââââââââââââââââââââââââââ
 
 /**
  * Attempts to refresh the token for a MetaConnection and persists the result.
@@ -414,7 +415,7 @@ async function tryRefreshAndPersist(connectionId: string, encryptedToken: string
   return refreshed.token;
 }
 
-// ─── Main publish entry point ─────────────────────────────────────────────────
+// âââ Main publish entry point âââââââââââââââââââââââââââââââââââââââââââââââââ
 
 export interface ExecutePublishResult {
   overallStatus: "PUBLISHED" | "FAILED";
@@ -433,13 +434,13 @@ export interface ExecutePublishResult {
  * Only DB/system errors are thrown.
  */
 export async function executePublishJob(jobId: string): Promise<ExecutePublishResult> {
-  // Do NOT call requireMetaEnv() here — it would block Instagram publishing
+  // Do NOT call requireMetaEnv() here â it would block Instagram publishing
   // (which uses direct env vars) if Meta OAuth vars are missing.
   // Facebook-specific env validation happens inside the Facebook path below.
 
-  console.log(`\n[meta-publish] ═══ Starting publish for job ${jobId} ═══`);
+  console.log(`\n[meta-publish] âââ Starting publish for job ${jobId} âââ`);
 
-  // ── Load job + relations ──────────────────────────────────────────────────
+  // ââ Load job + relations ââââââââââââââââââââââââââââââââââââââââââââââââââ
   const job = await prisma.publishJob.findUnique({
     where: { id: jobId },
     include: { draft: { include: { request: true } } },
@@ -448,7 +449,7 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
   if (!job) throw new Error(`PublishJob not found: ${jobId}`);
   if (!["QUEUED", "SCHEDULED"].includes(job.status)) {
     throw new Error(
-      `PublishJob ${jobId} is in status "${job.status}" — only QUEUED or SCHEDULED can be published.`
+      `PublishJob ${jobId} is in status "${job.status}" â only QUEUED or SCHEDULED can be published.`
     );
   }
 
@@ -475,9 +476,9 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
   const results: PlatformResult[] = [];
 
   for (const plat of platforms) {
-    console.log(`\n[meta-publish] ── Processing platform: ${plat} ──`);
+    console.log(`\n[meta-publish] ââ Processing platform: ${plat} ââ`);
 
-    // ── Instagram: use direct env credentials if set ───────────────────────
+    // ââ Instagram: use direct env credentials if set âââââââââââââââââââââââ
     // INSTAGRAM_USER_ID + INSTAGRAM_ACCESS_TOKEN bypass the MetaConnection
     // DB lookup entirely. These env vars take priority over any stored OAuth
     // connection. The token never leaves the server.
@@ -489,27 +490,27 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
         const reason =
           "INSTAGRAM_USER_ID and INSTAGRAM_ACCESS_TOKEN env vars are not set. " +
           "Add them to your environment to enable direct Instagram publishing.";
-        console.error(`[meta-publish] INSTAGRAM: ❌ ${reason}`);
+        console.error(`[meta-publish] INSTAGRAM: â ${reason}`);
         results.push({ platform: "INSTAGRAM", success: false, failureReason: reason });
         continue;
       }
 
-      // ── Token diagnostic logs (no full token printed) ────────────────────
+      // ââ Token diagnostic logs (no full token printed) ââââââââââââââââââââ
       const igToken = igTokenRaw.trim();
       console.log(`[meta-publish] INSTAGRAM: INSTAGRAM_USER_ID=${igUserId}`);
       console.log(`[meta-publish] INSTAGRAM: token present=true, length=${igTokenRaw.length} (trimmed=${igToken.length})`);
       console.log(`[meta-publish] INSTAGRAM: token prefix=${igToken.slice(0, 6)} suffix=${igToken.slice(-4)}`);
       console.log(`[meta-publish] INSTAGRAM: token has spaces=${/\s/.test(igToken)}, raw had leading/trailing whitespace=${igTokenRaw !== igToken}`);
-      console.log(`[meta-publish] INSTAGRAM: endpoint=POST ${GRAPH_BASE}/${igUserId}/media`);
+      console.log(`[meta-publish] INSTAGRAM: endpoint=POST ${IG_GRAPH_BASE}/${igUserId}/media`);
 
       console.log(`[meta-publish] INSTAGRAM: using direct env credentials (user ID: ${igUserId})`);
       const result = await publishToInstagram(igUserId.trim(), igUserId.trim(), igToken, draftContent);
 
       if (!result.success) {
-        console.error(`[meta-publish] INSTAGRAM: ❌ FAILED — ${result.failureReason}`);
+        console.error(`[meta-publish] INSTAGRAM: â FAILED â ${result.failureReason}`);
       } else {
         console.log(
-          `[meta-publish] INSTAGRAM: ✅ SUCCESS — ` +
+          `[meta-publish] INSTAGRAM: â SUCCESS â ` +
           `externalPostId=${result.externalPostId ?? "none"} | ` +
           `publishedUrl=${result.publishedUrl ?? "none"}`
         );
@@ -519,14 +520,14 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
       continue;
     }
 
-    // ── Facebook path: validate env vars, then find active connection ────────
+    // ââ Facebook path: validate env vars, then find active connection ââââââââ
     // This block is only reached when plat === "FACEBOOK".
     // Instagram takes the early-return env-var path above and never gets here.
     try {
       requireFacebookPublishEnv();
     } catch (err) {
       const reason = `Facebook publishing requires META_APP_ID, META_APP_SECRET, and TOKEN_ENCRYPTION_KEY to be set. ${err instanceof Error ? err.message : String(err)}`;
-      console.error(`[meta-publish] FACEBOOK: ❌ ${reason}`);
+      console.error(`[meta-publish] FACEBOOK: â ${reason}`);
       results.push({ platform: "FACEBOOK", success: false, failureReason: reason });
       continue;
     }
@@ -538,14 +539,14 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
 
     if (!connection) {
       const reason = `No active FACEBOOK connection found. Connect your account in Settings before publishing.`;
-      console.error(`[meta-publish] ${plat}: ❌ ${reason}`);
+      console.error(`[meta-publish] ${plat}: â ${reason}`);
       results.push({ platform: plat, success: false, failureReason: reason });
       continue;
     }
 
     console.log(`[meta-publish] ${plat}: using connection "${connection.pageName}" (id: ${connection.pageId})`);
 
-    // ── Check / refresh token ──────────────────────────────────────────────
+    // ââ Check / refresh token ââââââââââââââââââââââââââââââââââââââââââââââ
     let token: string;
     const now = new Date();
     const isExpired = connection.tokenExpiresAt && connection.tokenExpiresAt < now;
@@ -564,7 +565,7 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
         const reason =
           `${plat} access token has expired (${connection.tokenExpiresAt!.toISOString()}) and could not be refreshed. ` +
           `Please reconnect your account in Settings.`;
-        console.error(`[meta-publish] ${plat}: ❌ ${reason}`);
+        console.error(`[meta-publish] ${plat}: â ${reason}`);
         results.push({ platform: plat, success: false, failureReason: reason });
         continue;
       }
@@ -579,33 +580,33 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
         if (newToken) {
           token = newToken;
         } else {
-          // Refresh failed but token hasn't expired yet — use the existing one
+          // Refresh failed but token hasn't expired yet â use the existing one
           console.warn(`[meta-publish] ${plat}: proactive refresh failed, continuing with existing token.`);
           try {
             token = decrypt(connection.encryptedToken);
           } catch (err) {
             const reason = `Failed to decrypt ${plat} token: ${err instanceof Error ? err.message : String(err)}.`;
-            console.error(`[meta-publish] ${plat}: ❌ ${reason}`);
+            console.error(`[meta-publish] ${plat}: â ${reason}`);
             results.push({ platform: plat, success: false, failureReason: reason });
             continue;
           }
         }
       } else {
-        // Token is fine — just decrypt it
+        // Token is fine â just decrypt it
         try {
           token = decrypt(connection.encryptedToken);
         } catch (err) {
           const reason =
             `Failed to decrypt ${plat} token: ${err instanceof Error ? err.message : String(err)}. ` +
             `TOKEN_ENCRYPTION_KEY may have changed. Reconnect the account in Settings.`;
-          console.error(`[meta-publish] ${plat}: ❌ ${reason}`);
+          console.error(`[meta-publish] ${plat}: â ${reason}`);
           results.push({ platform: plat, success: false, failureReason: reason });
           continue;
         }
       }
     }
 
-    // ── Call Meta Graph API ────────────────────────────────────────────────
+    // ââ Call Meta Graph API ââââââââââââââââââââââââââââââââââââââââââââââââ
     let result: PlatformResult & { isTokenExpired?: boolean };
 
     if (plat === "FACEBOOK") {
@@ -614,7 +615,7 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
       result = await publishToInstagram(connection.pageId, connection.pageName, token, draftContent);
     }
 
-    // ── If Meta says token is expired, attempt one refresh + retry ─────────
+    // ââ If Meta says token is expired, attempt one refresh + retry âââââââââ
     if (!result.success && result.isTokenExpired) {
       console.log(`[meta-publish] ${plat}: Meta returned OAuthException/190. Attempting token refresh + retry...`);
       const newToken = await tryRefreshAndPersist(connection.id, connection.encryptedToken);
@@ -636,10 +637,10 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
     }
 
     if (!result.success) {
-      console.error(`[meta-publish] ${plat}: ❌ FAILED — ${result.failureReason}`);
+      console.error(`[meta-publish] ${plat}: â FAILED â ${result.failureReason}`);
     } else {
       console.log(
-        `[meta-publish] ${plat}: ✅ SUCCESS — ` +
+        `[meta-publish] ${plat}: â SUCCESS â ` +
         `externalPostId=${result.externalPostId ?? "none"} | ` +
         `publishedUrl=${result.publishedUrl ?? "none"}`
       );
@@ -648,7 +649,7 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
     results.push(result);
   }
 
-  // ── Determine aggregate outcome ───────────────────────────────────────────
+  // ââ Determine aggregate outcome âââââââââââââââââââââââââââââââââââââââââââ
   const allSucceeded = results.every((r) => r.success);
   const anySucceeded = results.some((r) => r.success);
   const overallStatus: "PUBLISHED" | "FAILED" = allSucceeded ? "PUBLISHED" : "FAILED";
@@ -663,7 +664,7 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
       ? failResults.map((r) => `[${r.platform}] ${r.failureReason}`).join("; ")
       : null;
 
-  // ── Persist to DB ─────────────────────────────────────────────────────────
+  // ââ Persist to DB âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   await prisma.publishJob.update({
     where: { id: jobId },
     data: {
@@ -677,8 +678,8 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
   });
 
   console.log(
-    `\n[meta-publish] ═══ Job ${jobId} complete: ${overallStatus} ` +
-    `(${results.filter((r) => r.success).length}/${results.length} platforms succeeded) ═══\n`
+    `\n[meta-publish] âââ Job ${jobId} complete: ${overallStatus} ` +
+    `(${results.filter((r) => r.success).length}/${results.length} platforms succeeded) âââ\n`
   );
 
   return { overallStatus, results };
