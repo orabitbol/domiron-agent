@@ -281,8 +281,22 @@ interface BackgroundImageProps {
  * Renders the real game screenshot + a dark overlay on top.
  * Placed BEFORE Atmosphere/GradientOverlay in the layer stack.
  */
+function isValidBgUrl(url: string): boolean {
+  if (!url || url.length < 4) return false;
+  return url.startsWith("/") || url.startsWith("http://") || url.startsWith("https://");
+}
+
 function BackgroundImage({ angle, visualDirection }: BackgroundImageProps) {
-  const src = resolveBackgroundImage(angle, visualDirection);
+  let src = resolveBackgroundImage(angle, visualDirection);
+
+  // Validate — if somehow invalid, fall back to default
+  if (!isValidBgUrl(src)) {
+    if (typeof window !== "undefined") {
+      console.warn(`[preview-bg] Invalid background URL: "${src}" — using fallback`);
+    }
+    src = FALLBACK_IMAGE;
+  }
+
   const position = BG_POSITIONS[src] ?? "center center";
 
   return (

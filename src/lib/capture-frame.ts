@@ -61,7 +61,10 @@ function waitForBackgroundImages(root: HTMLElement, timeoutMs: number, label: st
   return new Promise((resolve, reject) => {
     const urls: string[] = [];
 
-    // Walk the DOM tree and collect all background-image URLs
+    // Walk the DOM tree and collect all background-image URLs.
+    // We only want real image URLs (like /screenImage/bank.png or https://...).
+    // Skip data URIs (inline), CSS functions (gradients), and fragments leaked
+    // from inline SVG data URIs (e.g. "%23n" from url(#n) inside an SVG filter).
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
     let node: Node | null = walker.currentNode;
     while (node) {
@@ -70,10 +73,16 @@ function waitForBackgroundImages(root: HTMLElement, timeoutMs: number, label: st
         if (bg && bg !== "none") {
           const matches = bg.matchAll(/url\(["']?([^"')]+)["']?\)/g);
           for (const match of matches) {
-            const url = match[1];
-            if (url && !url.startsWith("data:") && !url.startsWith("linear-") && !url.startsWith("radial-")) {
-              urls.push(url);
+            const raw = match[1];
+            if (!raw || raw.length < 4) continue;                    // too short to be a real URL
+            if (raw.startsWith("data:")) continue;                   // inline data URI
+            if (raw.startsWith("linear-") || raw.startsWith("radial-")) continue; // CSS gradient
+            if (raw.startsWith("%23") || raw.startsWith("#")) continue; // SVG fragment ref leaked from data URI
+            if (!/^(\/|https?:\/\/)/.test(raw)) {                   // must start with / or http(s)://
+              console.warn(`[capture:${label}] Skipping non-image background URL: "${raw}"`);
+              continue;
             }
+            urls.push(raw);
           }
         }
       }
@@ -95,12 +104,12 @@ function waitForBackgroundImages(root: HTMLElement, timeoutMs: number, label: st
     const timer = setTimeout(() => {
       if (done) return;
       done = true;
-      const msg =
-        `[capture:${label}] FATAL: Background image load timed out after ${timeoutMs}ms. ` +
-        `${loaded}/${total} loaded. ` +
-        `Still waiting for: ${urls.filter((u) => !loadedSet.has(u)).join(", ")}`;
-      console.error(msg);
-      reject(new Error(msg));
+      const pending = urls.filter((u) => !loadedSet.has(u) && !failedUrls.includes(u));
+      console.warn(
+        `[capture:${label}] Background image load timed out after ${timeoutMs}ms. ` +
+        `${loaded}/${total} loaded. Still waiting for: ${pending.join(", ")} — continuing with fallback`
+      );
+      resolve(); // Proceed — a slide with CSS-only background is better than no slide
     }, timeoutMs);
 
     const loadedSet = new Set<string>();
@@ -111,19 +120,19 @@ function waitForBackgroundImages(root: HTMLElement, timeoutMs: number, label: st
         loadedSet.add(url);
         loaded++;
       } else {
+        // Warn but do NOT crash — a missing background is better than a failed export.
+        // The capture will proceed with whatever the browser rendered (fallback bg or blank).
+        console.warn(`[capture:${label}] Background image failed to load: ${url} — continuing with fallback`);
         failedUrls.push(url);
-        done = true;
-        clearTimeout(timer);
-        const msg =
-          `[capture:${label}] FATAL: Background image failed to load: ${url}`;
-        console.error(msg);
-        reject(new Error(msg));
-        return;
       }
       if (loaded + failedUrls.length >= total) {
         done = true;
         clearTimeout(timer);
-        console.log(`[capture:${label}] All ${total} background images loaded.`);
+        if (failedUrls.length > 0) {
+          console.warn(`[capture:${label}] ${failedUrls.length}/${total} background images failed — capture will proceed`);
+        } else {
+          console.log(`[capture:${label}] All ${total} background images loaded.`);
+        }
         resolve();
       }
     }
