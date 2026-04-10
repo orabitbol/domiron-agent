@@ -313,41 +313,48 @@ export function QueueTable({ jobs }: QueueTableProps) {
                       </Button>
                     )}
                     {(() => {
-                      // Debug: log the exact publishedUrl for every PUBLISHED job
-                      if (job.status === "PUBLISHED") {
-                        console.log(`[QueueTable] Job ${job.id}: publishedUrl = "${job.publishedUrl}"`);
-                      }
+                      if (job.status !== "PUBLISHED") return null;
+
+                      // Log EVERY publishedUrl for debugging
+                      console.log(`[QueueTable] FINAL publishedUrl for job ${job.id}:`, JSON.stringify(job.publishedUrl));
 
                       const url = job.publishedUrl;
-                      const isValid =
-                        job.status === "PUBLISHED" &&
-                        typeof url === "string" &&
-                        url.startsWith("https://") &&
-                        /^https:\/\/(www\.)?(facebook|instagram)\.com\/\d/.test(url) &&
-                        !url.includes("#") &&
-                        !url.includes("%23") &&
-                        url.length > 30;
 
-                      if (job.status === "PUBLISHED" && !isValid) {
-                        console.warn(`[QueueTable] Job ${job.id}: INVALID publishedUrl — hidden`);
+                      // Strict validation: must be a real Facebook or Instagram URL
+                      const isValidUrl =
+                        typeof url === "string" &&
+                        (url.startsWith("https://facebook.com") ||
+                         url.startsWith("https://www.facebook.com") ||
+                         url.startsWith("https://instagram.com") ||
+                         url.startsWith("https://www.instagram.com"));
+
+                      if (!isValidUrl) {
+                        console.error(`[QueueTable] Job ${job.id}: INVALID publishedUrl — blocked. Value:`, JSON.stringify(url));
+                        return (
+                          <span className="text-[10px]" style={{ color: "#f87171" }}>
+                            URL לא תקין
+                          </span>
+                        );
                       }
 
-                      return isValid ? (
-                        <a
-                          href={url!}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs"
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!url || !url.startsWith("https://")) {
+                              console.error("[QueueTable] Invalid publishedUrl blocked at click:", url);
+                              return;
+                            }
+                            console.log("[QueueTable] Opening external URL:", url);
+                            window.open(url, "_blank", "noopener,noreferrer");
+                          }}
+                          className="inline-flex items-center gap-1 text-xs cursor-pointer bg-transparent border-none"
                           style={{ color: "#60a5fa" }}
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                           צפה בפוסט
-                        </a>
-                      ) : job.status === "PUBLISHED" ? (
-                        <span className="text-[10px]" style={{ color: "#f87171" }}>
-                          URL לא תקין
-                        </span>
-                      ) : null;
+                        </button>
+                      );
                     })()}
                   </td>
                 </tr>
