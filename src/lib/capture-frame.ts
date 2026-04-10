@@ -19,7 +19,7 @@
 
 import { type ReactElement } from "react";
 import { createRoot } from "react-dom/client";
-import { toPng } from "html-to-image";
+import { toJpeg } from "html-to-image";
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -239,10 +239,12 @@ export async function captureFrameAsPng(
     try {
       console.log(`${tag} Capturing (attempt ${attempt}/${MAX_RETRIES + 1}, pixelRatio=${pixelRatio.toFixed(2)})...`);
 
-      const dataUrl = await toPng(captureTarget, {
+      const dataUrl = await toJpeg(captureTarget, {
         width,
         height,
         pixelRatio,
+        quality: 0.85,
+        backgroundColor: "#060810",
         cacheBust: true,
       });
 
@@ -251,8 +253,8 @@ export async function captureFrameAsPng(
         throw new Error(`Output too small (${dataUrl?.length ?? 0} chars) — likely blank or corrupt`);
       }
 
-      if (!dataUrl.startsWith("data:image/png")) {
-        throw new Error(`Output is not a PNG data URL (starts with "${dataUrl.slice(0, 30)}")`);
+      if (!dataUrl.startsWith("data:image/jpeg")) {
+        throw new Error(`Output is not a JPEG data URL (starts with "${dataUrl.slice(0, 30)}")`);
       }
 
       const sizeKB = Math.ceil(dataUrl.length * 0.75 / 1024);

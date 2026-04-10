@@ -70,35 +70,26 @@ const PRESET_CATEGORIES: PresetCategory[] = [
         id: "battle-attack",
         icon: FileText,
         title: "תקפו אותך",
-        hint: "מכה אחת חדה — מישהו פוגע בך עכשיו",
+        hint: "מכה אחת — מישהו תקף",
         values: {
           title: "תקפו אותך",
           platform: "FACEBOOK" as const,
           contentType: "POST" as const,
           contentPillar: "קרב",
-          instructions:
-            "פוסט אחד. מכה ישירה.\n" +
-            "מישהו תקף את הקורא. עכשיו. הוא לא יודע.\n" +
-            "טון: דחוף, מלחיץ. 3–8 מילים למשפט.\n" +
-            "\"תקפו אותך.\" / \"בלילה. בלי אזהרה.\"\n" +
-            "לא מסביר — מכה.",
+          instructions: "\"תקפו אותך.\"\n\"בלילה.\"\nמקסימום 3 שורות, 4 מילים כל אחת.",
         },
       },
       {
         id: "battle-loss",
         icon: FileText,
-        title: "הפסדת קרב",
-        hint: "כאב אחרי הפסד — החיילים שלך עובדים בשביל מישהו אחר",
+        title: "ישנת",
+        hint: "הפסד — לא ידעת",
         values: {
-          title: "הפסדת קרב — חיילים אבודים",
+          title: "ישנת",
           platform: "FACEBOOK" as const,
           contentType: "POST" as const,
           contentPillar: "קרב",
-          instructions:
-            "פוסט רגשי. הקורא הפסיד ולא ידע.\n" +
-            "50% מהחיילים שנהרגו עובדים בשביל האויב עכשיו.\n" +
-            "טון: שקט וכואב. לא צועק. מראה את התוצאה.\n" +
-            "\"החיילים שלך? שלו עכשיו.\"",
+          instructions: "\"ישנת.\"\n\"שילמת.\"\nמקסימום 2 שורות.",
         },
       },
     ],
@@ -110,34 +101,26 @@ const PRESET_CATEGORIES: PresetCategory[] = [
         id: "economy-gold",
         icon: Layers,
         title: "זהב בחוץ",
-        hint: "קרוסלה — מישהו רואה את המשאבים שלך ולוקח",
+        hint: "קרוסלה — מישהו ראה ולקח",
         values: {
-          title: "זהב בחוץ — קרוסלת שדידה",
+          title: "זהב בחוץ",
           platform: "FACEBOOK" as const,
           contentType: "CAROUSEL" as const,
           contentPillar: "כלכלה",
-          instructions:
-            "קרוסלה 3–5 סליידים. כל סלייד = שורה אחת.\n" +
-            "הזהב של הקורא חשוף. מישהו כבר ראה.\n" +
-            "\"השארת זהב בחוץ.\" → \"מישהו ראה.\" → \"לקחו.\" → \"12% כל סיבוב.\" → \"תפקיד בבנק.\"\n" +
-            "טון: ישיר, חד, בלי הסברים.",
+          instructions: "\"זהב בחוץ.\" → \"מישהו ראה.\" → \"לקחו.\" → \"תפקיד בבנק.\"\n1–4 מילים לסלייד.",
         },
       },
       {
         id: "economy-stolen",
         icon: FileText,
-        title: "מישהו לקח לך משאבים",
-        hint: "פוסט — הפסד כלכלי שקורה עכשיו",
+        title: "לקחו לך",
+        hint: "פוסט — הפסד כלכלי",
         values: {
-          title: "מישהו לקח לך משאבים",
+          title: "לקחו לך",
           platform: "FACEBOOK" as const,
           contentType: "POST" as const,
           contentPillar: "כלכלה",
-          instructions:
-            "פוסט אחד. הקורא מפסיד משאבים עכשיו.\n" +
-            "12% מהזהב החשוף נלקח כל סיבוב.\n" +
-            "טון: קר, עובדתי, כואב.\n" +
-            "\"ישנת. לקחו לך 12%.\"",
+          instructions: "\"לקחו לך.\"\n\"12% כל סיבוב.\"\nמקסימום 2 שורות.",
         },
       },
     ],
@@ -148,19 +131,14 @@ const PRESET_CATEGORIES: PresetCategory[] = [
       {
         id: "spy-exposed",
         icon: FileText,
-        title: "מישהו יודע עליך הכל",
-        hint: "פוסט — חשיפת מודיעין, הקורא חשוף בלי לדעת",
+        title: "מישהו ראה",
+        hint: "פוסט — חשיפה, פרנויה",
         values: {
-          title: "מישהו יודע עליך הכל",
+          title: "מישהו ראה",
           platform: "FACEBOOK" as const,
           contentType: "POST" as const,
           contentPillar: "ריגול",
-          instructions:
-            "פוסט אחד. מישהו ריגל אחרי הקורא.\n" +
-            "הוא יודע כמה חיילים, כמה זהב, מה ההגנה.\n" +
-            "הקורא לא יודע כלום על האויב.\n" +
-            "טון: פרנואידי, שקט, מאיים.\n" +
-            "\"הוא יודע עליך הכל. אתה? כלום.\"",
+          instructions: "\"הוא יודע הכל.\"\n\"אתה? כלום.\"\nמקסימום 2 שורות.",
         },
       },
     ],
@@ -171,35 +149,27 @@ const PRESET_CATEGORIES: PresetCategory[] = [
       {
         id: "compete-ahead",
         icon: Layers,
-        title: "כולם כבר לפניך",
-        hint: "קרוסלה — השוואה, פגיעה באגו, תחושת נחיתות",
+        title: "כולם שם",
+        hint: "קרוסלה — כולם לפניך",
         values: {
-          title: "כולם כבר לפניך — קרוסלת אגו",
+          title: "כולם שם",
           platform: "FACEBOOK" as const,
           contentType: "CAROUSEL" as const,
           contentPillar: "תחרות",
-          instructions:
-            "קרוסלה 3–5 סליידים. פגיעה באגו.\n" +
-            "מישהו ספציפי עקף את הקורא. הוא מאחור.\n" +
-            "\"כולם בעיר 3. אתה ב-1.\" → \"הוא לא יותר חזק. הוא פשוט לא ישן.\" → \"חשבת שאתה טוב?\" → \"תבדוק את הדירוג.\" → \"תתחבר.\"\n" +
-            "טון: דוקר, משווה, פוגע בגאווה.",
+          instructions: "\"כולם בעיר 3.\" → \"אתה ב-1.\" → \"הפער גדל.\" → \"תתחבר.\"\n1–4 מילים לסלייד.",
         },
       },
       {
         id: "compete-behind",
         icon: FileText,
         title: "אתה מאחור",
-        hint: "פוסט — הפער גדל, הדירוג משתנה",
+        hint: "פוסט — הדירוג השתנה",
         values: {
-          title: "אתה מאחור — הדירוג השתנה",
+          title: "אתה מאחור",
           platform: "FACEBOOK" as const,
           contentType: "POST" as const,
           contentPillar: "תחרות",
-          instructions:
-            "פוסט אחד. הקורא מאחור ולא יודע.\n" +
-            "הדירוג משתנה כל 30 דקות. הוא לא שם.\n" +
-            "טון: שקט, ביטחון, \"אתה מבין מה קורה, נכון?\"\n" +
-            "\"הדירוג השתנה. אתה לא שם.\"",
+          instructions: "\"הדירוג השתנה.\"\n\"אתה לא שם.\"\nמקסימום 2 שורות.",
         },
       },
     ],
@@ -211,18 +181,13 @@ const PRESET_CATEGORIES: PresetCategory[] = [
         id: "tribe-alone",
         icon: FileText,
         title: "לבד אתה נופל",
-        hint: "פוסט — כולם בשבט, אתה לבד, הלחשים עובדים נגדך",
+        hint: "פוסט — אתה לבד, הם מאוחדים",
         values: {
           title: "לבד אתה נופל",
           platform: "FACEBOOK" as const,
           contentType: "POST" as const,
           contentPillar: "שבט",
-          instructions:
-            "פוסט אחד. הקורא משחק לבד.\n" +
-            "כולם בשבטים. לחשי שבט עובדים נגדו.\n" +
-            "×1.25 תקיפה נגדו. ×1.15 הגנה נגדו.\n" +
-            "טון: בודד, נחות, כולם מאוחדים חוץ ממנו.\n" +
-            "\"הם מאוחדים. אתה לבד.\"",
+          instructions: "\"הם מאוחדים.\"\n\"אתה לבד.\"\nמקסימום 2 שורות.",
         },
       },
     ],

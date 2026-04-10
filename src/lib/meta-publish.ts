@@ -651,9 +651,16 @@ export async function executePublishJob(
     return { overallStatus: "FAILED", results: [{ platform: "FACEBOOK", success: false, failureReason: reason }] };
   }
 
-  const isCarousel = draft.format === "CAROUSEL" && options?.slideImageUrls && options.slideImageUrls.length > 0;
+  const isCarousel = draft.format === "CAROUSEL" && options?.slideImageUrls && options.slideImageUrls.length > 1;
   if (isCarousel) {
     console.log(`[meta-publish] Carousel mode: ${options!.slideImageUrls!.length} slide images provided`);
+  }
+
+  // For POST with a generated image: inject the image URL into mediaUrl
+  const isPostWithImage = draft.format === "STATIC" && options?.slideImageUrls && options.slideImageUrls.length === 1;
+  if (isPostWithImage) {
+    draftContent.mediaUrl = options!.slideImageUrls![0];
+    console.log(`[meta-publish] Post mode: generated image injected as mediaUrl`);
   }
 
   const platforms: Array<"FACEBOOK" | "INSTAGRAM"> =

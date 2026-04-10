@@ -13,7 +13,7 @@ import {
   type PublishJobWithDraft,
   type MarkPublishedResponse,
 } from "@/hooks/use-publish-jobs";
-import { generateCarouselSlideImages } from "@/components/queue/carousel-export-helper";
+import { generateCarouselSlideImages, generatePostImage } from "@/components/queue/carousel-export-helper";
 
 const platformLabels: Record<string, string> = {
   INSTAGRAM: "אינסטגרם",
@@ -68,44 +68,60 @@ export function QueueTable({ jobs }: QueueTableProps) {
     try {
       let slideImageUrls: string[] | undefined;
 
-      // If this is a CAROUSEL, generate and upload slide images first
-      if (job.draft.format === "CAROUSEL") {
-        setCarouselProgress("מייצר תמונות סליידים...");
+      // ── Generate images before publish ─────────────────────────────────
+      // POST: single 1080x1080 image
+      // CAROUSEL: one image per slide
+      // Both upload via /api/export/slides to get Cloudinary URLs.
+      const fmt = job.draft.format;
 
+      if (fmt === "STATIC" || fmt === "CAROUSEL") {
         try {
-          const images = await generateCarouselSlideImages(job.draft);
-          console.log(`[QueueTable] Generated ${images.length} carousel slide images`);
+          if (fmt === "CAROUSEL") {
+            setCarouselProgress("מייצר תמונות סליידים...");
+            const images = await generateCarouselSlideImages(job.draft);
+            console.log(`[QueueTable] Generated ${images.length} carousel slide images`);
 
-          // Upload each slide individually to avoid 413 payload-too-large
-          const urls: string[] = [];
-          for (let i = 0; i < images.length; i++) {
-            setCarouselProgress(`מעלה תמונה ${i + 1}/${images.length}...`);
+            const urls: string[] = [];
+            for (let i = 0; i < images.length; i++) {
+              setCarouselProgress(`מעלה תמונה ${i + 1}/${images.length}...`);
+              const uploadRes = await fetch("/api/export/slides", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: images[i] }),
+              });
+              if (!uploadRes.ok) {
+                const err = await uploadRes.json().catch(() => ({}));
+                throw new Error(err.error ?? `שגיאה בהעלאת סלייד ${i + 1}`);
+              }
+              const { url } = (await uploadRes.json()) as { url: string };
+              urls.push(url);
+            }
+            slideImageUrls = urls;
+            setCarouselProgress("מפרסם קרוסלה...");
+          } else {
+            // POST / STATIC — generate single image
+            setCarouselProgress("מייצר תמונה...");
+            const image = await generatePostImage(job.draft);
+            console.log(`[QueueTable] Generated post image`);
 
+            setCarouselProgress("מעלה תמונה...");
             const uploadRes = await fetch("/api/export/slides", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ image: images[i] }),
+              body: JSON.stringify({ image }),
             });
-
             if (!uploadRes.ok) {
               const err = await uploadRes.json().catch(() => ({}));
-              throw new Error(err.error ?? `שגיאה בהעלאת סלייד ${i + 1}`);
+              throw new Error(err.error ?? "שגיאה בהעלאת תמונת הפוסט");
             }
-
             const { url } = (await uploadRes.json()) as { url: string };
-            urls.push(url);
+            slideImageUrls = [url];
+            setCarouselProgress("מפרסם...");
           }
-
-          console.log(`[QueueTable] Uploaded ${urls.length} slide images to Cloudinary`);
-          slideImageUrls = urls;
-
-          setCarouselProgress("מפרסם קרוסלה...");
         } catch (err) {
-          console.error("[QueueTable] Carousel export/upload failed:", err);
+          console.error("[QueueTable] Image export/upload failed:", err);
           toast.error(
-            err instanceof Error
-              ? err.message
-              : "שגיאה בייצוא תמונות הקרוסלה"
+            err instanceof Error ? err.message : "שגיאה בייצוא תמונות"
           );
           setCarouselProgress(null);
           setConfirmId(null);

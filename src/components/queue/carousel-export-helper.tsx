@@ -1,20 +1,15 @@
 "use client";
 
 /**
- * Client-side carousel slide image generator for the publish flow.
+ * Client-side image generators for the publish flow.
  *
- * Uses the production-hardened captureFrameAsPng() from lib/capture-frame,
- * which guarantees:
- *   - All background images are loaded before capture
- *   - Fonts are ready
- *   - Multiple rAF cycles for paint settlement
- *   - Retry on failure
- *   - Output validation (not blank/corrupt)
- *   - Debug mode for visual inspection
+ * Generates images for both POST (single) and CAROUSEL (multi-slide)
+ * using the production-hardened captureFrameAsPng() from lib/capture-frame.
  */
 
 import {
   EXPORT_SIZES,
+  PostExportFrame,
   CarouselSlideExportFrame,
   buildCarouselSlides,
 } from "@/components/drafts/preview/export-frames";
@@ -23,7 +18,7 @@ import { captureFrameAsPng } from "@/lib/capture-frame";
 import type { DraftFull } from "@/hooks/use-drafts";
 
 /** Draft shape from the publish-jobs API (subset of DraftFull) */
-interface PublishDraft {
+export interface PublishDraft {
   id: string;
   hook: string | null;
   format: string;
@@ -37,15 +32,9 @@ interface PublishDraft {
   hashtags: string[];
 }
 
-/**
- * Generate PNG data URIs for each carousel slide.
- * Returns an array of base64 data URIs ready for upload.
- */
-export async function generateCarouselSlideImages(
-  draft: PublishDraft
-): Promise<string[]> {
-  // Adapt the publish-jobs draft shape to DraftFull shape for the export frames
-  const draftFull = {
+/** Adapt PublishDraft to DraftFull for export frame components. */
+function toDraftFull(draft: PublishDraft): DraftFull {
+  return {
     ...draft,
     requestId: "",
     goal: null,
@@ -59,12 +48,43 @@ export async function generateCarouselSlideImages(
     createdAt: "",
     updatedAt: "",
   } as DraftFull;
+}
 
+/**
+ * Generate a single 1080x1080 image for a POST draft.
+ * Returns one base64 data URI.
+ */
+export async function generatePostImage(draft: PublishDraft): Promise<string> {
+  const draftFull = toDraftFull(draft);
+  const angle = detectAngle(draft.visualDirection);
+  const sq = EXPORT_SIZES.square;
+
+  console.log(`[post-export] Generating post image...`);
+
+  const element = <PostExportFrame draft={draftFull} angle={angle} />;
+
+  const dataUrl = await captureFrameAsPng(element, {
+    width: sq.width,
+    height: sq.height,
+    targetWidth: sq.targetWidth,
+    label: "post",
+  });
+
+  console.log(`[post-export] Post image generated.`);
+  return dataUrl;
+}
+
+/**
+ * Generate images for each carousel slide.
+ * Returns an array of base64 data URIs.
+ */
+export async function generateCarouselSlideImages(draft: PublishDraft): Promise<string[]> {
+  const draftFull = toDraftFull(draft);
   const angle = detectAngle(draft.visualDirection);
   const slides = buildCarouselSlides(draftFull);
   const sq = EXPORT_SIZES.square;
 
-  console.log(`[carousel-export] Generating ${slides.length} slide images (hardened pipeline)...`);
+  console.log(`[carousel-export] Generating ${slides.length} slide images...`);
 
   const images: string[] = [];
 
@@ -89,6 +109,6 @@ export async function generateCarouselSlideImages(
     images.push(dataUrl);
   }
 
-  console.log(`[carousel-export] All ${images.length} slides generated successfully.`);
+  console.log(`[carousel-export] All ${images.length} slides generated.`);
   return images;
 }
