@@ -76,21 +76,26 @@ export function QueueTable({ jobs }: QueueTableProps) {
           const images = await generateCarouselSlideImages(job.draft);
           console.log(`[QueueTable] Generated ${images.length} carousel slide images`);
 
-          setCarouselProgress(`מעלה ${images.length} תמונות...`);
+          // Upload each slide individually to avoid 413 payload-too-large
+          const urls: string[] = [];
+          for (let i = 0; i < images.length; i++) {
+            setCarouselProgress(`מעלה תמונה ${i + 1}/${images.length}...`);
 
-          // Upload to Cloudinary via our API
-          const uploadRes = await fetch("/api/export/slides", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ images }),
-          });
+            const uploadRes = await fetch("/api/export/slides", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ image: images[i] }),
+            });
 
-          if (!uploadRes.ok) {
-            const err = await uploadRes.json().catch(() => ({}));
-            throw new Error(err.error ?? "שגיאה בהעלאת תמונות הסליידים");
+            if (!uploadRes.ok) {
+              const err = await uploadRes.json().catch(() => ({}));
+              throw new Error(err.error ?? `שגיאה בהעלאת סלייד ${i + 1}`);
+            }
+
+            const { url } = (await uploadRes.json()) as { url: string };
+            urls.push(url);
           }
 
-          const { urls } = (await uploadRes.json()) as { urls: string[] };
           console.log(`[QueueTable] Uploaded ${urls.length} slide images to Cloudinary`);
           slideImageUrls = urls;
 

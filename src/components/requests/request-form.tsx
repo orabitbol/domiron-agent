@@ -45,59 +45,187 @@ const CONTENT_TYPE_OPTIONS = [
   { value: "REEL", label: "ריל (לא זמין)", disabled: true },
 ];
 
-// ─── Presets ──────────────────────────────────────────────────────────────────
+// ─── Preset types ────────────────────────────────────────────────────────────
 
 interface Preset {
   id: string;
   icon: typeof FileText;
   title: string;
-  subtitle: string;
   hint: string;
   values: Partial<RequestFormData>;
 }
 
-const PRESETS: Preset[] = [
+interface PresetCategory {
+  label: string;
+  presets: Preset[];
+}
+
+// ─── Presets data ────────────────────────────────────────────────────────────
+
+const PRESET_CATEGORIES: PresetCategory[] = [
   {
-    id: "fb-post",
-    icon: FileText,
-    title: "מסר אחד חד — מכה מהירה",
-    subtitle: "פוסט פייסבוק",
-    hint: "כשיש לך מסר אחד חזק",
-    values: {
-      title: "פוסט פייסבוק — מכה מהירה",
-      platform: "FACEBOOK" as const,
-      contentType: "POST" as const,
-      contentPillar: "קרב",
-      instructions:
-        "פוסט אחד. שורה אחת שעוצרת בגלילה.\n" +
-        "הטון: מישהו שרואה את הקורא מפסיד ולא יכול לשתוק.\n" +
-        "דחוף. מלחיץ. חד. משפטים של 3–8 מילים.\n" +
-        "לא מסביר. לא מפרט. מכה.\n" +
-        "דוגמה לטון: \"תקפו אותך.\" / \"הזהב? נגמר.\" / \"ישנת. שילמת.\"\n" +
-        "CTA ישיר. תמונה בודדת או טקסט בלבד.",
-    },
+    label: "קרב",
+    presets: [
+      {
+        id: "battle-attack",
+        icon: FileText,
+        title: "תקפו אותך",
+        hint: "מכה אחת חדה — מישהו פוגע בך עכשיו",
+        values: {
+          title: "תקפו אותך",
+          platform: "FACEBOOK" as const,
+          contentType: "POST" as const,
+          contentPillar: "קרב",
+          instructions:
+            "פוסט אחד. מכה ישירה.\n" +
+            "מישהו תקף את הקורא. עכשיו. הוא לא יודע.\n" +
+            "טון: דחוף, מלחיץ. 3–8 מילים למשפט.\n" +
+            "\"תקפו אותך.\" / \"בלילה. בלי אזהרה.\"\n" +
+            "לא מסביר — מכה.",
+        },
+      },
+      {
+        id: "battle-loss",
+        icon: FileText,
+        title: "הפסדת קרב",
+        hint: "כאב אחרי הפסד — החיילים שלך עובדים בשביל מישהו אחר",
+        values: {
+          title: "הפסדת קרב — חיילים אבודים",
+          platform: "FACEBOOK" as const,
+          contentType: "POST" as const,
+          contentPillar: "קרב",
+          instructions:
+            "פוסט רגשי. הקורא הפסיד ולא ידע.\n" +
+            "50% מהחיילים שנהרגו עובדים בשביל האויב עכשיו.\n" +
+            "טון: שקט וכואב. לא צועק. מראה את התוצאה.\n" +
+            "\"החיילים שלך? שלו עכשיו.\"",
+        },
+      },
+    ],
   },
   {
-    id: "fb-carousel",
-    icon: Layers,
-    title: "רצף שמפיל — הסלמה רגשית",
-    subtitle: "קרוסלת פייסבוק",
-    hint: "כשאתה רוצה להכניס את הקורא לתהליך",
-    values: {
-      title: "קרוסלת פייסבוק — הסלמה רגשית",
-      platform: "FACEBOOK" as const,
-      contentType: "CAROUSEL" as const,
-      contentPillar: "תחרות",
-      instructions:
-        "קרוסלה של 3–5 סליידים. כל סלייד = שורה אחת חדה.\n" +
-        "הטון: מישהו שמראה לקורא שאחרים עקפו אותו.\n" +
-        "השוואה ישירה. פגיעה באגו. תחושת נחיתות.\n" +
-        "\"כולם כבר בעיר 3. אתה ב-1.\"\n" +
-        "\"הוא לא יותר חזק. הוא פשוט לא ישן.\"\n" +
-        "\"חשבת שאתה טוב? תבדוק את הדירוג.\"\n" +
-        "הסלמה: איום → כאב → הסלמה → הבנה → פעולה.\n" +
-        "לא מצגת. לא שיעור. רצף מכות שדוקרות באגו.",
-    },
+    label: "כלכלה",
+    presets: [
+      {
+        id: "economy-gold",
+        icon: Layers,
+        title: "זהב בחוץ",
+        hint: "קרוסלה — מישהו רואה את המשאבים שלך ולוקח",
+        values: {
+          title: "זהב בחוץ — קרוסלת שדידה",
+          platform: "FACEBOOK" as const,
+          contentType: "CAROUSEL" as const,
+          contentPillar: "כלכלה",
+          instructions:
+            "קרוסלה 3–5 סליידים. כל סלייד = שורה אחת.\n" +
+            "הזהב של הקורא חשוף. מישהו כבר ראה.\n" +
+            "\"השארת זהב בחוץ.\" → \"מישהו ראה.\" → \"לקחו.\" → \"12% כל סיבוב.\" → \"תפקיד בבנק.\"\n" +
+            "טון: ישיר, חד, בלי הסברים.",
+        },
+      },
+      {
+        id: "economy-stolen",
+        icon: FileText,
+        title: "מישהו לקח לך משאבים",
+        hint: "פוסט — הפסד כלכלי שקורה עכשיו",
+        values: {
+          title: "מישהו לקח לך משאבים",
+          platform: "FACEBOOK" as const,
+          contentType: "POST" as const,
+          contentPillar: "כלכלה",
+          instructions:
+            "פוסט אחד. הקורא מפסיד משאבים עכשיו.\n" +
+            "12% מהזהב החשוף נלקח כל סיבוב.\n" +
+            "טון: קר, עובדתי, כואב.\n" +
+            "\"ישנת. לקחו לך 12%.\"",
+        },
+      },
+    ],
+  },
+  {
+    label: "ריגול",
+    presets: [
+      {
+        id: "spy-exposed",
+        icon: FileText,
+        title: "מישהו יודע עליך הכל",
+        hint: "פוסט — חשיפת מודיעין, הקורא חשוף בלי לדעת",
+        values: {
+          title: "מישהו יודע עליך הכל",
+          platform: "FACEBOOK" as const,
+          contentType: "POST" as const,
+          contentPillar: "ריגול",
+          instructions:
+            "פוסט אחד. מישהו ריגל אחרי הקורא.\n" +
+            "הוא יודע כמה חיילים, כמה זהב, מה ההגנה.\n" +
+            "הקורא לא יודע כלום על האויב.\n" +
+            "טון: פרנואידי, שקט, מאיים.\n" +
+            "\"הוא יודע עליך הכל. אתה? כלום.\"",
+        },
+      },
+    ],
+  },
+  {
+    label: "תחרות",
+    presets: [
+      {
+        id: "compete-ahead",
+        icon: Layers,
+        title: "כולם כבר לפניך",
+        hint: "קרוסלה — השוואה, פגיעה באגו, תחושת נחיתות",
+        values: {
+          title: "כולם כבר לפניך — קרוסלת אגו",
+          platform: "FACEBOOK" as const,
+          contentType: "CAROUSEL" as const,
+          contentPillar: "תחרות",
+          instructions:
+            "קרוסלה 3–5 סליידים. פגיעה באגו.\n" +
+            "מישהו ספציפי עקף את הקורא. הוא מאחור.\n" +
+            "\"כולם בעיר 3. אתה ב-1.\" → \"הוא לא יותר חזק. הוא פשוט לא ישן.\" → \"חשבת שאתה טוב?\" → \"תבדוק את הדירוג.\" → \"תתחבר.\"\n" +
+            "טון: דוקר, משווה, פוגע בגאווה.",
+        },
+      },
+      {
+        id: "compete-behind",
+        icon: FileText,
+        title: "אתה מאחור",
+        hint: "פוסט — הפער גדל, הדירוג משתנה",
+        values: {
+          title: "אתה מאחור — הדירוג השתנה",
+          platform: "FACEBOOK" as const,
+          contentType: "POST" as const,
+          contentPillar: "תחרות",
+          instructions:
+            "פוסט אחד. הקורא מאחור ולא יודע.\n" +
+            "הדירוג משתנה כל 30 דקות. הוא לא שם.\n" +
+            "טון: שקט, ביטחון, \"אתה מבין מה קורה, נכון?\"\n" +
+            "\"הדירוג השתנה. אתה לא שם.\"",
+        },
+      },
+    ],
+  },
+  {
+    label: "שבט",
+    presets: [
+      {
+        id: "tribe-alone",
+        icon: FileText,
+        title: "לבד אתה נופל",
+        hint: "פוסט — כולם בשבט, אתה לבד, הלחשים עובדים נגדך",
+        values: {
+          title: "לבד אתה נופל",
+          platform: "FACEBOOK" as const,
+          contentType: "POST" as const,
+          contentPillar: "שבט",
+          instructions:
+            "פוסט אחד. הקורא משחק לבד.\n" +
+            "כולם בשבטים. לחשי שבט עובדים נגדו.\n" +
+            "×1.25 תקיפה נגדו. ×1.15 הגנה נגדו.\n" +
+            "טון: בודד, נחות, כולם מאוחדים חוץ ממנו.\n" +
+            "\"הם מאוחדים. אתה לבד.\"",
+        },
+      },
+    ],
   },
 ];
 
@@ -133,7 +261,7 @@ export function RequestForm() {
       }
     }
     setActivePreset(preset.id);
-    toast.success(`הוחל: ${preset.subtitle}`);
+    toast.success(`הוחל: ${preset.title}`);
   };
 
   const onSubmit = async (data: RequestFormData) => {
@@ -149,78 +277,95 @@ export function RequestForm() {
   return (
     <div className="space-y-6 max-w-2xl">
       {/* ── Presets ──────────────────────────────────────────────────────── */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <p
           className="text-xs font-bold uppercase tracking-wider"
           style={{ color: "#64748B" }}
         >
           התחל מתבנית
         </p>
-        <div className="grid grid-cols-2 gap-3">
-          {PRESETS.map((preset) => {
-            const Icon = preset.icon;
-            const isActive = activePreset === preset.id;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                onClick={() => applyPreset(preset)}
-                className="rounded-xl border p-4 text-right transition-all duration-200 hover:scale-[1.02]"
-                style={{
-                  backgroundColor: isActive ? "#1e2030" : "#1A1D27",
-                  borderColor: isActive ? "#6B5CF6" : "#2D3148",
-                  boxShadow: isActive ? "0 0 20px rgba(107,92,246,0.15)" : "none",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.borderColor = "#6B5CF680";
-                    e.currentTarget.style.backgroundColor = "#1e2030";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.borderColor = "#2D3148";
-                    e.currentTarget.style.backgroundColor = "#1A1D27";
-                  }
-                }}
-              >
-                <div className="flex items-start gap-3">
-                  <div
-                    className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+
+        {PRESET_CATEGORIES.map((cat) => (
+          <div key={cat.label} className="space-y-2">
+            <p
+              className="text-[11px] font-bold uppercase tracking-wider pr-1"
+              style={{ color: "#475569" }}
+            >
+              {cat.label}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {cat.presets.map((preset) => {
+                const Icon = preset.icon;
+                const isActive = activePreset === preset.id;
+                const isCarousel = preset.values.contentType === "CAROUSEL";
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => applyPreset(preset)}
+                    className="rounded-lg border p-3 text-right transition-all duration-150 hover:scale-[1.01]"
                     style={{
-                      backgroundColor: isActive ? "#6B5CF630" : "#6B5CF615",
+                      backgroundColor: isActive ? "#1e2030" : "#1A1D27",
+                      borderColor: isActive ? "#6B5CF6" : "#2D3148",
+                      boxShadow: isActive ? "0 0 16px rgba(107,92,246,0.12)" : "none",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.borderColor = "#6B5CF660";
+                        e.currentTarget.style.backgroundColor = "#1e2030";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.borderColor = "#2D3148";
+                        e.currentTarget.style.backgroundColor = "#1A1D27";
+                      }
                     }}
                   >
-                    <Icon
-                      className="w-4 h-4"
-                      style={{ color: isActive ? "#c4b5fd" : "#a78bfa" }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <p
-                      className="text-sm font-semibold leading-tight"
-                      style={{ color: "#F1F5F9" }}
-                    >
-                      {preset.title}
-                    </p>
-                    <p
-                      className="text-[11px] font-medium"
-                      style={{ color: isActive ? "#a78bfa" : "#64748B" }}
-                    >
-                      {preset.subtitle}
-                    </p>
-                    <p
-                      className="text-[10px]"
-                      style={{ color: "#475569" }}
-                    >
-                      {preset.hint}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                    <div className="flex items-start gap-2.5">
+                      <div
+                        className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5"
+                        style={{
+                          backgroundColor: isActive ? "#6B5CF625" : "#6B5CF610",
+                        }}
+                      >
+                        <Icon
+                          className="w-3.5 h-3.5"
+                          style={{ color: isActive ? "#c4b5fd" : "#8b83b8" }}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p
+                            className="text-sm font-semibold leading-tight"
+                            style={{ color: "#F1F5F9" }}
+                          >
+                            {preset.title}
+                          </p>
+                          {isCarousel && (
+                            <span
+                              className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                              style={{ backgroundColor: "#6B5CF615", color: "#8b83b8" }}
+                            >
+                              קרוסלה
+                            </span>
+                          )}
+                        </div>
+                        <p
+                          className="text-[10px] mt-0.5 leading-snug"
+                          style={{ color: "#475569" }}
+                        >
+                          {preset.hint}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
         <p className="text-[11px]" style={{ color: "#475569" }}>
           לא חייבים לבחור תבנית — אפשר למלא ידנית
         </p>
