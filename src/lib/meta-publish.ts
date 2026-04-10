@@ -5,11 +5,14 @@
  *
  * Responsibilities:
  *  1. Resolve the active MetaConnection for the job's platform(s)
+ *     - DB token is always preferred (supports auto-refresh)
+ *     - For Instagram only: falls back to INSTAGRAM_ACCESS_TOKEN env var if no DB connection
  *  2. Check / proactively refresh token when near expiry
  *  3. Decrypt the stored access token (the ONLY place decrypt() is called)
  *  4. POST to the correct Graph API endpoint
  *  5. Persist real publish metadata into the PublishJob record
  *     (externalPostId, publishedUrl, failureReason, status)
+ *  6. On unrecoverable OAuthException 190: mark connection isActive=false
  *
  * Platforms:
  *  FACEBOOK → POST /{page_id}/feed  (text)
@@ -477,41 +480,80 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
   for (const plat of platforms) {
     console.log(`\n[meta-publish] ── Processing platform: ${plat} ──`);
 
-    // ── Instagram: use direct env credentials if set ───────────────────────
-    // INSTAGRAM_USER_ID + INSTAGRAM_ACCESS_TOKEN bypass the MetaConnection
-    // DB lookup entirely. These env vars take priority over any stored OAuth
-    // connection. The token never leaves the server.
-    if (plat === "INSTAGRAM") {
-      const igUserId = process.env.INSTAGRAM_USER_ID;
+    // ── Validate env vars required for DB token decryption ─────────────────
+    // META_APP_ID, META_APP_SECRET, TOKEN_ENCRYPTION_KEY must all be present
+    // to use the DB path. We check once here so the result drives all branches.
+    let publishEnvOk = true;
+    try {
+      requireFacebookPublishEnv();
+    } catch (err) {
+      publishEnvOk = false;
+      if (plat === "FACEBOOK") {
+        const reason = `Facebook publishing requires META_APP_ID, META_APP_SECRET, and TOKEN_ENCRYPTION_KEY to be set. ${err instanceof Error ? err.message : String(err)}`;
+        console.error(`[meta-publish] FACEBOOK: ❌ ${reason}`);
+        results.push({ platform: "FACEBOOK", success: false, failureReason: reason });
+        continue;
+      }
+      // For Instagram: publishEnvOk=false means we cannot use DB path,
+      // but we may still fall back to env-var credentials below.
+    }
+
+    // ── Look up active MetaConnection in DB (preferred for both platforms) ──
+    // DB tokens are long-lived page access tokens that can be auto-refreshed.
+    // Env-var tokens (INSTAGRAM_ACCESS_TOKEN) have no refresh mechanism and
+    // fail silently once they expire (~60 days). DB is always tried first.
+    const connection = publishEnvOk
+      ? await prisma.metaConnection.findFirst({
+          where: { platform: plat, isActive: true },
+          orderBy: { updatedAt: "desc" },
+        })
+      : null;
+
+    if (connection) {
+      console.log(
+        `[meta-publish] ${plat}: ✅ Using DB token — connection "${connection.pageName}" (pageId: ${connection.pageId})`
+      );
+    }
+
+    // ── Instagram: fall back to env credentials when no DB connection ───────
+    if (plat === "INSTAGRAM" && !connection) {
+      const igUserId = process.env.INSTAGRAM_USER_ID?.trim();
       const igTokenRaw = process.env.INSTAGRAM_ACCESS_TOKEN;
 
       if (!igUserId || !igTokenRaw) {
         const reason =
-          "INSTAGRAM_USER_ID and INSTAGRAM_ACCESS_TOKEN env vars are not set. " +
-          "Add them to your environment to enable direct Instagram publishing.";
+          "No active Instagram connection found in database and " +
+          "INSTAGRAM_USER_ID / INSTAGRAM_ACCESS_TOKEN env vars are not set. " +
+          "Reconnect your Instagram account in Settings.";
         console.error(`[meta-publish] INSTAGRAM: ❌ ${reason}`);
         results.push({ platform: "INSTAGRAM", success: false, failureReason: reason });
         continue;
       }
 
-      // ── Token diagnostic logs (no full token printed) ────────────────────
       const igToken = igTokenRaw.trim();
-      console.log(`[meta-publish] INSTAGRAM: INSTAGRAM_USER_ID=${igUserId}`);
-      console.log(`[meta-publish] INSTAGRAM: token present=true, length=${igTokenRaw.length} (trimmed=${igToken.length})`);
-      console.log(`[meta-publish] INSTAGRAM: token prefix=${igToken.slice(0, 6)} suffix=${igToken.slice(-4)}`);
-      console.log(`[meta-publish] INSTAGRAM: token has spaces=${/\s/.test(igToken)}, raw had leading/trailing whitespace=${igTokenRaw !== igToken}`);
-      console.log(`[meta-publish] INSTAGRAM: endpoint=POST ${GRAPH_BASE}/${igUserId}/media`);
+      console.warn(
+        `[meta-publish] INSTAGRAM: ⚠️ No active DB connection — falling back to ENV token. ` +
+        `This token cannot be auto-refreshed; reconnect via Settings to get a refreshable token.`
+      );
+      console.log(`[meta-publish] INSTAGRAM: ENV INSTAGRAM_USER_ID=${igUserId}`);
+      console.log(`[meta-publish] INSTAGRAM: ENV token prefix=${igToken.slice(0, 6)} suffix=${igToken.slice(-4)} length=${igToken.length}`);
+      console.log(`[meta-publish] INSTAGRAM: ENV token has spaces=${/\s/.test(igToken)}, raw had leading/trailing whitespace=${igTokenRaw !== igToken}`);
 
-      console.log(`[meta-publish] INSTAGRAM: using direct env credentials (user ID: ${igUserId})`);
-      const result = await publishToInstagram(igUserId.trim(), igUserId.trim(), igToken, draftContent);
+      const result = await publishToInstagram(igUserId, igUserId, igToken, draftContent);
 
       if (!result.success) {
-        console.error(`[meta-publish] INSTAGRAM: ❌ FAILED — ${result.failureReason}`);
+        console.error(`[meta-publish] INSTAGRAM: ❌ FAILED (ENV token) — ${result.failureReason}`);
+        if (result.isTokenExpired) {
+          console.error(
+            `[meta-publish] INSTAGRAM: ❌ ENV token is expired (OAuthException 190). ` +
+            `Generate a fresh long-lived token and update INSTAGRAM_ACCESS_TOKEN, ` +
+            `or reconnect via Settings to store a refreshable token in the database.`
+          );
+        }
       } else {
         console.log(
-          `[meta-publish] INSTAGRAM: ✅ SUCCESS — ` +
-          `externalPostId=${result.externalPostId ?? "none"} | ` +
-          `publishedUrl=${result.publishedUrl ?? "none"}`
+          `[meta-publish] INSTAGRAM: ✅ SUCCESS (ENV token) — ` +
+          `externalPostId=${result.externalPostId ?? "none"} | publishedUrl=${result.publishedUrl ?? "none"}`
         );
       }
 
@@ -519,33 +561,15 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
       continue;
     }
 
-    // ── Facebook path: validate env vars, then find active connection ────────
-    // This block is only reached when plat === "FACEBOOK".
-    // Instagram takes the early-return env-var path above and never gets here.
-    try {
-      requireFacebookPublishEnv();
-    } catch (err) {
-      const reason = `Facebook publishing requires META_APP_ID, META_APP_SECRET, and TOKEN_ENCRYPTION_KEY to be set. ${err instanceof Error ? err.message : String(err)}`;
-      console.error(`[meta-publish] FACEBOOK: ❌ ${reason}`);
-      results.push({ platform: "FACEBOOK", success: false, failureReason: reason });
-      continue;
-    }
-
-    const connection = await prisma.metaConnection.findFirst({
-      where: { platform: plat, isActive: true },
-      orderBy: { updatedAt: "desc" },
-    });
-
+    // ── No DB connection (and not the Instagram env-fallback path) ──────────
     if (!connection) {
-      const reason = `No active FACEBOOK connection found. Connect your account in Settings before publishing.`;
+      const reason = `No active ${plat} connection found. Connect your account in Settings before publishing.`;
       console.error(`[meta-publish] ${plat}: ❌ ${reason}`);
       results.push({ platform: plat, success: false, failureReason: reason });
       continue;
     }
 
-    console.log(`[meta-publish] ${plat}: using connection "${connection.pageName}" (id: ${connection.pageId})`);
-
-    // ── Check / refresh token ──────────────────────────────────────────────
+    // ── Check / refresh DB token ───────────────────────────────────────────
     let token: string;
     const now = new Date();
     const isExpired = connection.tokenExpiresAt && connection.tokenExpiresAt < now;
@@ -561,9 +585,14 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
       );
       const newToken = await tryRefreshAndPersist(connection.id, connection.encryptedToken);
       if (!newToken) {
+        // Mark connection inactive so Settings shows it needs reconnecting.
+        await prisma.metaConnection.update({
+          where: { id: connection.id },
+          data: { isActive: false },
+        });
         const reason =
           `${plat} access token has expired (${connection.tokenExpiresAt!.toISOString()}) and could not be refreshed. ` +
-          `Please reconnect your account in Settings.`;
+          `The connection has been deactivated — please reconnect your account in Settings.`;
         console.error(`[meta-publish] ${plat}: ❌ ${reason}`);
         results.push({ platform: plat, success: false, failureReason: reason });
         continue;
@@ -626,11 +655,20 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
           result = await publishToInstagram(connection.pageId, connection.pageName, newToken, draftContent);
         }
       } else {
+        // Refresh failed — deactivate the connection to force re-auth from Settings.
+        await prisma.metaConnection.update({
+          where: { id: connection.id },
+          data: { isActive: false },
+        });
+        console.error(
+          `[meta-publish] ${plat}: ❌ Token refresh failed after OAuthException 190. ` +
+          `Connection deactivated — user must reconnect in Settings.`
+        );
         result = {
           ...result,
           failureReason:
             `${plat} token is invalid or expired and could not be refreshed. ` +
-            `Please reconnect your account in Settings.`,
+            `The connection has been deactivated. Please reconnect your account in Settings.`,
         };
       }
     }
