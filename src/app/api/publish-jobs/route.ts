@@ -18,6 +18,13 @@ export async function GET() {
             hook: true,
             format: true,
             mediaUrl: true,
+            facebookCaption: true,
+            instagramCaption: true,
+            cta: true,
+            carouselSlides: true,
+            storyFrames: true,
+            visualDirection: true,
+            hashtags: true,
             request: {
               select: {
                 title: true,

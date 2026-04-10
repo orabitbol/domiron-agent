@@ -53,7 +53,13 @@ export const colors = {
 // Automatically detects the content angle from visual_direction text and returns
 // a color palette that tints the preview background accordingly.
 
-export type ContentAngle = "battle" | "economy" | "spy" | "tribe" | "competition" | "default";
+export type ContentAngle =
+  | "battle"
+  | "economy"
+  | "spy"
+  | "tribe"
+  | "competition"
+  | "default";
 
 interface AngleTheme {
   /** Primary accent color for this angle */
@@ -142,15 +148,23 @@ export function detectAngle(visualDirection?: string | null): ContentAngle {
   const text = visualDirection.toLowerCase();
 
   // Battle: fire, war, soldiers, attack, fortress, army, combat
-  if (/קרב|תקיפ|חייל|צבא|מלחמ|אש|מבצר|נשק|חרב|attack|battle|war|fire|fort|army|soldier/.test(text)) {
+  if (
+    /קרב|תקיפ|חייל|צבא|מלחמ|אש|מבצר|נשק|חרב|attack|battle|war|fire|fort|army|soldier/.test(
+      text,
+    )
+  ) {
     return "battle";
   }
   // Economy: gold, bank, loot, resources, vault, mine
-  if (/זהב|בנק|שלל|משאב|כספ|מכר|עבד|gold|bank|loot|vault|resource|econ/.test(text)) {
+  if (
+    /זהב|בנק|שלל|משאב|כספ|מכר|עבד|gold|bank|loot|vault|resource|econ/.test(text)
+  ) {
     return "economy";
   }
   // Spy: shadow, stealth, spy, intelligence, hidden
-  if (/ריגול|מרגל|צל|סתר|מודיעין|חשיפ|spy|shadow|stealth|intel|hidden/.test(text)) {
+  if (
+    /ריגול|מרגל|צל|סתר|מודיעין|חשיפ|spy|shadow|stealth|intel|hidden/.test(text)
+  ) {
     return "spy";
   }
   // Tribe: tribe, clan, alliance, banner, ritual
@@ -184,7 +198,7 @@ const FALLBACK_IMAGE = "/screenImage/deasboard.png";
 
 /** Primary screenshot per angle. */
 const ANGLE_BG_DEFAULTS: Record<ContentAngle, string> = {
-  battle: "/screenImage/training.png",
+  battle: "/screenImage/background-game.png",
   economy: "/screenImage/bank.png",
   spy: "/screenImage/map.png",
   tribe: "/screenImage/clan.png",
@@ -198,14 +212,32 @@ const ANGLE_BG_DEFAULTS: Record<ContentAngle, string> = {
  * Checked in order; first match wins.
  */
 const KEYWORD_BG_OVERRIDES: { pattern: RegExp; image: string }[] = [
-  { pattern: /חנות|shop|נשק|ציוד|שריון|arsenal/, image: "/screenImage/shop.png" },
-  { pattern: /אימון|training|גיוס|recruit/, image: "/screenImage/training.png" },
+  {
+    pattern: /חנות|shop|נשק|ציוד|שריון|arsenal/,
+    image: "/screenImage/shop.png",
+  },
+  {
+    pattern: /אימון|training|גיוס|recruit/,
+    image: "/screenImage/training.png",
+  },
   { pattern: /בנק|bank|הפקד|ריבית|deposit/, image: "/screenImage/bank.png" },
   { pattern: /שבט|clan|tribe|מועצ|לחש/, image: "/screenImage/clan.png" },
-  { pattern: /מפה|map|טריטוריה|territory|עיר|city/, image: "/screenImage/map.png" },
-  { pattern: /אוכלוסי|population|גידול|growth/, image: "/screenImage/population.png" },
-  { pattern: /עבד|slave|worker|עובד|ייצור|production/, image: "/screenImage/working.png" },
-  { pattern: /פרס|prize|הישג|achievement|שלל|reward/, image: "/screenImage/prize.png" },
+  {
+    pattern: /מפה|map|טריטוריה|territory|עיר|city/,
+    image: "/screenImage/map.png",
+  },
+  {
+    pattern: /אוכלוסי|population|גידול|growth/,
+    image: "/screenImage/population.png",
+  },
+  {
+    pattern: /עבד|slave|worker|עובד|ייצור|production/,
+    image: "/screenImage/working.png",
+  },
+  {
+    pattern: /פרס|prize|הישג|achievement|שלל|reward/,
+    image: "/screenImage/prize.png",
+  },
   { pattern: /דירוג|rank|leader|crown|כתר/, image: "/screenImage/prize.png" },
 ];
 
@@ -224,7 +256,10 @@ const BG_POSITIONS: Record<string, string> = {
 };
 
 /** Resolve the best screenshot for a given angle + raw visual_direction. */
-function resolveBackgroundImage(angle: ContentAngle, visualDirection?: string | null): string {
+function resolveBackgroundImage(
+  angle: ContentAngle,
+  visualDirection?: string | null,
+): string {
   // Try keyword overrides first (more specific wins)
   if (visualDirection) {
     const text = visualDirection.toLowerCase();
@@ -341,7 +376,10 @@ interface GradientOverlayProps {
   angle?: ContentAngle;
 }
 
-export function GradientOverlay({ position = "bottom", angle = "default" }: GradientOverlayProps) {
+export function GradientOverlay({
+  position = "bottom",
+  angle = "default",
+}: GradientOverlayProps) {
   const theme = getAngleTheme(angle);
 
   const gradients: Record<string, string> = {
@@ -508,7 +546,8 @@ interface CtaBadgeProps {
 
 export function CtaBadge({ children, angle = "default" }: CtaBadgeProps) {
   const theme = getAngleTheme(angle);
-  const isGold = angle === "default" || angle === "economy" || angle === "competition";
+  const isGold =
+    angle === "default" || angle === "economy" || angle === "competition";
   const bg = isGold
     ? `linear-gradient(135deg, ${colors.gold} 0%, #B8912E 100%)`
     : `linear-gradient(135deg, ${theme.accent} 0%, ${colors.bg} 200%)`;
@@ -566,7 +605,11 @@ interface SlideIndicatorProps {
   angle?: ContentAngle;
 }
 
-export function SlideIndicator({ total, current, angle = "default" }: SlideIndicatorProps) {
+export function SlideIndicator({
+  total,
+  current,
+  angle = "default",
+}: SlideIndicatorProps) {
   const theme = getAngleTheme(angle);
   return (
     <div className="flex gap-1.5 justify-center py-1">
@@ -577,7 +620,8 @@ export function SlideIndicator({ total, current, angle = "default" }: SlideIndic
           style={{
             width: i === current ? 24 : 6,
             height: 6,
-            backgroundColor: i === current ? theme.accent : "rgba(255,255,255,0.15)",
+            backgroundColor:
+              i === current ? theme.accent : "rgba(255,255,255,0.15)",
             boxShadow: i === current ? `0 0 10px ${theme.glow}` : "none",
           }}
         />
@@ -618,7 +662,12 @@ interface SceneNumberProps {
   isLast?: boolean;
 }
 
-export function SceneNumber({ number, angle = "default", isFirst, isLast }: SceneNumberProps) {
+export function SceneNumber({
+  number,
+  angle = "default",
+  isFirst,
+  isLast,
+}: SceneNumberProps) {
   const theme = getAngleTheme(angle);
   const bg = isFirst
     ? `linear-gradient(135deg, ${theme.accent} 0%, ${colors.crimson} 100%)`
@@ -686,7 +735,12 @@ interface NavButtonProps {
   children: ReactNode;
 }
 
-export function NavButton({ direction, onClick, angle = "default", children }: NavButtonProps) {
+export function NavButton({
+  direction,
+  onClick,
+  angle = "default",
+  children,
+}: NavButtonProps) {
   const theme = getAngleTheme(angle);
   const position = direction === "prev" ? "right-2.5" : "left-2.5";
 

@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PublishJobStatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -13,6 +13,7 @@ import {
   type PublishJobWithDraft,
   type MarkPublishedResponse,
 } from "@/hooks/use-publish-jobs";
+import { generateCarouselSlideImages } from "@/components/queue/carousel-export-helper";
 
 const platformLabels: Record<string, string> = {
   INSTAGRAM: "אינסטגרם",
@@ -52,17 +53,68 @@ interface QueueTableProps {
 
 export function QueueTable({ jobs }: QueueTableProps) {
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [carouselProgress, setCarouselProgress] = useState<string | null>(null);
   const { mutateAsync: markPublished, isPending } = useMarkPublished();
   const { mutateAsync: retryJob, isPending: isRetrying } = useRetryPublishJob();
 
-  const handleConfirm = async () => {
+  const isPublishing = isPending || carouselProgress !== null;
+
+  const handleConfirm = useCallback(async () => {
     if (!confirmId) return;
+
+    const job = jobs.find((j) => j.id === confirmId);
+    if (!job) return;
+
     try {
-      const response: MarkPublishedResponse = await markPublished(confirmId);
+      let slideImageUrls: string[] | undefined;
+
+      // If this is a CAROUSEL, generate and upload slide images first
+      if (job.draft.format === "CAROUSEL") {
+        setCarouselProgress("מייצר תמונות סליידים...");
+
+        try {
+          const images = await generateCarouselSlideImages(job.draft);
+          console.log(`[QueueTable] Generated ${images.length} carousel slide images`);
+
+          setCarouselProgress(`מעלה ${images.length} תמונות...`);
+
+          // Upload to Cloudinary via our API
+          const uploadRes = await fetch("/api/export/slides", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ images }),
+          });
+
+          if (!uploadRes.ok) {
+            const err = await uploadRes.json().catch(() => ({}));
+            throw new Error(err.error ?? "שגיאה בהעלאת תמונות הסליידים");
+          }
+
+          const { urls } = (await uploadRes.json()) as { urls: string[] };
+          console.log(`[QueueTable] Uploaded ${urls.length} slide images to Cloudinary`);
+          slideImageUrls = urls;
+
+          setCarouselProgress("מפרסם קרוסלה...");
+        } catch (err) {
+          console.error("[QueueTable] Carousel export/upload failed:", err);
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : "שגיאה בייצוא תמונות הקרוסלה"
+          );
+          setCarouselProgress(null);
+          setConfirmId(null);
+          return;
+        }
+      }
+
+      const response: MarkPublishedResponse = await markPublished(
+        slideImageUrls ? { id: confirmId, slideImageUrls } : confirmId
+      );
+
       if (response.publishStatus === "PUBLISHED") {
         toast.success("הפוסט פורסם בהצלחה");
       } else {
-        // Meta API returned a failure — show the first specific reason.
         const firstFailure = response.results.find((r) => !r.success);
         toast.error(
           firstFailure?.failureReason
@@ -73,9 +125,10 @@ export function QueueTable({ jobs }: QueueTableProps) {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "שגיאה בפרסום הפוסט");
     } finally {
+      setCarouselProgress(null);
       setConfirmId(null);
     }
-  };
+  }, [confirmId, jobs, markPublished]);
 
   return (
     <>
@@ -143,7 +196,6 @@ export function QueueTable({ jobs }: QueueTableProps) {
                   <td style={cellStyle}>
                     <div className="flex flex-col gap-1">
                       <PublishJobStatusBadge status={job.status} />
-                      {/* Show failure reason inline under the badge */}
                       {isFailed && job.failureReason && (
                         <p
                           className="text-xs leading-tight"
@@ -172,11 +224,12 @@ export function QueueTable({ jobs }: QueueTableProps) {
                     {isActionable && (
                       <Button
                         size="sm"
+                        disabled={isPublishing}
                         onClick={() => {
                           const needsMedia =
                             job.draft.request.platform === "INSTAGRAM" ||
                             job.draft.request.platform === "BOTH";
-                          if (needsMedia && !job.draft.mediaUrl) {
+                          if (needsMedia && !job.draft.mediaUrl && job.draft.format !== "CAROUSEL") {
                             toast.error(
                               "לפרסום לאינסטגרם נדרשת תמונה. פתח את הטיוטה והעלה תמונה לפני הפרסום."
                             );
@@ -190,10 +243,16 @@ export function QueueTable({ jobs }: QueueTableProps) {
                         }}
                         className="text-xs font-medium"
                       >
-                        פרסם עכשיו
+                        {isPublishing && confirmId === job.id ? (
+                          <span className="flex items-center gap-1.5">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            {carouselProgress ?? "מפרסם..."}
+                          </span>
+                        ) : (
+                          "פרסם עכשיו"
+                        )}
                       </Button>
                     )}
-                    {/* Retry button — only for FAILED jobs */}
                     {isFailed && (
                       <Button
                         size="sm"
@@ -215,7 +274,6 @@ export function QueueTable({ jobs }: QueueTableProps) {
                         נסה שוב
                       </Button>
                     )}
-                    {/* Show external link if the post was successfully published */}
                     {job.status === "PUBLISHED" && job.publishedUrl && (
                       <a
                         href={job.publishedUrl}
@@ -239,14 +297,22 @@ export function QueueTable({ jobs }: QueueTableProps) {
       <ConfirmDialog
         open={confirmId !== null}
         onOpenChange={(open) => {
-          if (!open) setConfirmId(null);
+          if (!open && !isPublishing) setConfirmId(null);
         }}
-        title="פרסום פוסט"
-        description="לפרסם פוסט זה לרשתות החברתיות כעת?"
+        title={
+          confirmId && jobs.find((j) => j.id === confirmId)?.draft.format === "CAROUSEL"
+            ? "פרסום קרוסלה"
+            : "פרסום פוסט"
+        }
+        description={
+          confirmId && jobs.find((j) => j.id === confirmId)?.draft.format === "CAROUSEL"
+            ? "המערכת תייצר תמונות לכל סלייד ותפרסם כקרוסלת תמונות בפייסבוק. להמשיך?"
+            : "לפרסם פוסט זה לרשתות החברתיות כעת?"
+        }
         confirmLabel="פרסם עכשיו"
         cancelLabel="ביטול"
         onConfirm={handleConfirm}
-        isLoading={isPending}
+        isLoading={isPublishing}
       />
     </>
   );

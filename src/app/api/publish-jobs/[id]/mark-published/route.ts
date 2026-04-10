@@ -30,13 +30,25 @@ export async function POST(_request: Request, { params }: RouteContext) {
     );
   }
 
+  // Parse optional slideImageUrls from the request body (for carousel publishing).
+  // If the body is empty or unparseable, that's fine — it just means no carousel images.
+  let slideImageUrls: string[] | undefined;
+  try {
+    const body = await _request.json();
+    if (Array.isArray(body?.slideImageUrls) && body.slideImageUrls.length > 0) {
+      slideImageUrls = body.slideImageUrls as string[];
+    }
+  } catch {
+    // No body or invalid JSON — not an error, just means no carousel images
+  }
+
   try {
     // Execute the real publish flow:
     //  1. Resolve active MetaConnection(s) for the job's platform
     //  2. Decrypt stored access token (calls decrypt() from lib/meta-token.ts)
-    //  3. POST to the Meta Graph API
+    //  3. POST to the Meta Graph API (carousel multi-image if slideImageUrls provided)
     //  4. Persist externalPostId, publishedUrl, failureReason into the PublishJob
-    const { overallStatus, results } = await executePublishJob(id);
+    const { overallStatus, results } = await executePublishJob(id, { slideImageUrls });
 
     // Reload the updated job to return the freshest record to the client.
     const updatedJob = await prisma.publishJob.findUnique({ where: { id } });

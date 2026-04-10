@@ -21,6 +21,13 @@ export type PublishJobWithDraft = {
     hook: string | null;
     format: string;
     mediaUrl: string | null;
+    facebookCaption: string | null;
+    instagramCaption: string | null;
+    cta: string | null;
+    carouselSlides: Array<{ text: string }> | null;
+    storyFrames: Array<{ order: number; text: string; isLogoFrame?: boolean }> | null;
+    visualDirection: string | null;
+    hashtags: string[];
     request: {
       title: string;
       platform: string;
@@ -60,9 +67,19 @@ export type MarkPublishedResponse = {
 export function useMarkPublished() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string): Promise<MarkPublishedResponse> => {
+    mutationFn: async (
+      args: string | { id: string; slideImageUrls?: string[] }
+    ): Promise<MarkPublishedResponse> => {
+      const id = typeof args === "string" ? args : args.id;
+      const slideImageUrls = typeof args === "string" ? undefined : args.slideImageUrls;
       const res = await fetch(`/api/publish-jobs/${id}/mark-published`, {
         method: "POST",
+        ...(slideImageUrls
+          ? {
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ slideImageUrls }),
+            }
+          : {}),
       });
       // 4xx / 5xx = unexpected error (bad state, server crash, missing env vars).
       // A Meta API failure returns 200 with publishStatus: "FAILED".

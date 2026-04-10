@@ -48,6 +48,10 @@ interface DraftContent {
   instagramCaption: string | null;
   hashtags: string[];
   mediaUrl: string | null;
+  /** Content format from the draft — STATIC, CAROUSEL, REEL, STORY */
+  format: string | null;
+  /** Pre-uploaded slide image URLs for carousel publishing */
+  slideImageUrls?: string[];
 }
 
 // âââ Caption builders âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -265,6 +269,121 @@ async function publishToFacebook(
 
 // âââ Instagram publishing âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
+// ─── Facebook carousel (multi-image) publishing ──────────────────────────────
+// Uses Facebook's multi-photo post flow:
+//   1. Upload each slide image as an "unpublished" photo (published=false)
+//   2. Create a feed post with attached_media referencing all photo IDs
+// This creates a native multi-image post that users can swipe through.
+
+async function publishCarouselToFacebook(
+  pageId: string,
+  pageName: string,
+  token: string,
+  draft: DraftContent,
+  slideImageUrls: string[]
+): Promise<PlatformResult & { isTokenExpired?: boolean }> {
+  const message = buildFacebookMessage(draft);
+
+  console.log(`[Facebook/Carousel] Publishing multi-image carousel to page "${pageName}" (${pageId})`);
+  console.log(`[Facebook/Carousel] ${slideImageUrls.length} slide images to upload`);
+  if (message) console.log(`[Facebook/Carousel] caption: ${message.slice(0, 80)}${message.length > 80 ? "…" : ""}`);
+
+  // Step 1: Upload each slide as an unpublished photo
+  const photoIds: string[] = [];
+
+  for (let i = 0; i < slideImageUrls.length; i++) {
+    const imageUrl = slideImageUrls[i];
+    console.log(`[Facebook/Carousel]   Uploading slide ${i + 1}/${slideImageUrls.length}: ${imageUrl.slice(0, 80)}...`);
+
+    const uploadRes = await fetch(`${GRAPH_BASE}/${pageId}/photos`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: imageUrl,
+        published: false,
+      }),
+    });
+
+    const uploadData = (await uploadRes.json()) as Record<string, unknown>;
+    console.log(`[Facebook/Carousel]   POST /${pageId}/photos (unpublished) → ${uploadRes.status}:`, JSON.stringify(uploadData));
+
+    if (!uploadRes.ok) {
+      const errMsg = extractMetaError(uploadData);
+      console.error(`[Facebook/Carousel]   Slide ${i + 1} upload failed: ${errMsg}`);
+      if (isExpiredTokenError(uploadData)) {
+        return { platform: "FACEBOOK", success: false, failureReason: errMsg, isTokenExpired: true };
+      }
+      return {
+        platform: "FACEBOOK",
+        success: false,
+        failureReason: `Carousel slide ${i + 1} upload failed: ${errMsg}`,
+      };
+    }
+
+    const photoId = uploadData.id as string;
+    if (!photoId) {
+      return {
+        platform: "FACEBOOK",
+        success: false,
+        failureReason: `Carousel slide ${i + 1}: Facebook returned no photo ID`,
+      };
+    }
+
+    console.log(`[Facebook/Carousel]   Slide ${i + 1} uploaded: photo_id=${photoId}`);
+    photoIds.push(photoId);
+  }
+
+  // Step 2: Create feed post with all photos attached
+  console.log(`[Facebook/Carousel] Creating multi-image feed post with ${photoIds.length} attached photos...`);
+
+  const feedBody: Record<string, unknown> = {};
+  if (message) feedBody.message = message;
+
+  // Facebook Graph API expects attached_media as indexed parameters
+  photoIds.forEach((id, i) => {
+    feedBody[`attached_media[${i}]`] = JSON.stringify({ media_fbid: id });
+  });
+
+  const feedRes = await fetch(`${GRAPH_BASE}/${pageId}/feed`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(feedBody),
+  });
+
+  const feedData = (await feedRes.json()) as Record<string, unknown>;
+  console.log(`[Facebook/Carousel] POST /${pageId}/feed (multi-image) → ${feedRes.status}:`, JSON.stringify(feedData));
+
+  if (!feedRes.ok) {
+    const errMsg = extractMetaError(feedData);
+    console.error(`[Facebook/Carousel] Multi-image post failed: ${errMsg}`);
+    if (isExpiredTokenError(feedData)) {
+      return { platform: "FACEBOOK", success: false, failureReason: errMsg, isTokenExpired: true };
+    }
+    if (isPermissionError(feedData)) {
+      console.error(`[Facebook/Carousel] Permission denied — ensure token includes: pages_manage_posts, pages_read_engagement`);
+    }
+    return { platform: "FACEBOOK", success: false, failureReason: errMsg };
+  }
+
+  const rawId = (feedData.id as string) || "";
+  const parts = rawId.split("_");
+  const publishedUrl =
+    parts.length === 2
+      ? `https://www.facebook.com/${parts[0]}/posts/${parts[1]}`
+      : rawId
+        ? `https://www.facebook.com/${rawId}`
+        : undefined;
+
+  console.log(`[Facebook/Carousel] Multi-image carousel published. id=${rawId}${publishedUrl ? ` | url=${publishedUrl}` : ""}`);
+  return { platform: "FACEBOOK", success: true, externalPostId: rawId || undefined, publishedUrl };
+}
+
 async function publishToInstagram(
   igUserId: string,
   igUsername: string,
@@ -454,7 +573,10 @@ export interface ExecutePublishResult {
  * Meta API failures are captured internally and written to PublishJob.failureReason.
  * Only DB/system errors are thrown.
  */
-export async function executePublishJob(jobId: string): Promise<ExecutePublishResult> {
+export async function executePublishJob(
+  jobId: string,
+  options?: { slideImageUrls?: string[] }
+): Promise<ExecutePublishResult> {
   // Do NOT call requireMetaEnv() here â it would block Instagram publishing
   // (which uses direct env vars) if Meta OAuth vars are missing.
   // Facebook-specific env validation happens inside the Facebook path below.
@@ -489,7 +611,14 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
     instagramCaption: draft.instagramCaption,
     hashtags: draft.hashtags,
     mediaUrl: draft.mediaUrl,
+    format: draft.format,
+    slideImageUrls: options?.slideImageUrls,
   };
+
+  const isCarousel = draft.format === "CAROUSEL" && options?.slideImageUrls && options.slideImageUrls.length > 0;
+  if (isCarousel) {
+    console.log(`[meta-publish] Carousel mode: ${options!.slideImageUrls!.length} slide images provided`);
+  }
 
   const platforms: Array<"FACEBOOK" | "INSTAGRAM"> =
     job.platform === "BOTH" ? ["FACEBOOK", "INSTAGRAM"] : [job.platform as "FACEBOOK" | "INSTAGRAM"];
@@ -630,8 +759,14 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
     // ââ Call Meta Graph API ââââââââââââââââââââââââââââââââââââââââââââââââ
     let result: PlatformResult & { isTokenExpired?: boolean };
 
+    // Choose the right publish function based on format
+    const callFacebookPublish = (t: string) =>
+      isCarousel
+        ? publishCarouselToFacebook(connection.pageId, connection.pageName, t, draftContent, options!.slideImageUrls!)
+        : publishToFacebook(connection.pageId, connection.pageName, t, draftContent);
+
     if (plat === "FACEBOOK") {
-      result = await publishToFacebook(connection.pageId, connection.pageName, token, draftContent);
+      result = await callFacebookPublish(token);
     } else {
       result = await publishToInstagram(connection.pageId, connection.pageName, token, draftContent);
     }
@@ -643,7 +778,7 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
       if (newToken) {
         console.log(`[meta-publish] ${plat}: Retrying publish with refreshed token...`);
         if (plat === "FACEBOOK") {
-          result = await publishToFacebook(connection.pageId, connection.pageName, newToken, draftContent);
+          result = await callFacebookPublish(newToken);
         } else {
           result = await publishToInstagram(connection.pageId, connection.pageName, newToken, draftContent);
         }
