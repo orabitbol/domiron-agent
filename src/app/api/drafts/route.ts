@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { requestId, format, hook, hashtags, storyFrames, ...rest } = result.data;
+  const { requestId, format, hook, hashtags, storyFrames, carouselSlides, ...rest } = result.data;
 
   try {
     // Ensure request exists
@@ -80,6 +80,7 @@ export async function POST(request: Request) {
           hook: hook ?? null,
           hashtags: hashtags ?? [],
           storyFrames: storyFrames ? JSON.parse(JSON.stringify(storyFrames)) : null,
+          carouselSlides: carouselSlides ? JSON.parse(JSON.stringify(carouselSlides)) : null,
           goal: rest.goal || null,
           bestAngle: rest.bestAngle || null,
           facebookCaption: rest.facebookCaption || null,

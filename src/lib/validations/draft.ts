@@ -6,6 +6,10 @@ const storyFrameSchema = z.object({
   isLogoFrame: z.boolean().optional(),
 });
 
+const carouselSlideSchema = z.object({
+  text: z.string().min(1),
+});
+
 export const draftSchema = z.object({
   requestId: z.string().min(1, "נדרש מזהה בקשה"),
   format: z.enum(["STATIC", "CAROUSEL", "REEL", "STORY"] as const),
@@ -18,6 +22,7 @@ export const draftSchema = z.object({
   facebookCaption: z.string().max(2000, "כיתוב פייסבוק לא יכול לעלות על 2000 תווים").optional(),
   instagramCaption: z.string().max(2200, "כיתוב אינסטגרם לא יכול לעלות על 2200 תווים").optional(),
   storyFrames: z.array(storyFrameSchema).optional(),
+  carouselSlides: z.array(carouselSlideSchema).optional(),
   cta: z.string().optional(),
   hashtags: z.array(z.string()).optional(),
   visualDirection: z.string().optional(),

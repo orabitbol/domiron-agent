@@ -183,6 +183,22 @@ const SUBMIT_DRAFT_TOOL: Anthropic.Tool = {
           required: ["order", "text"],
         },
       },
+      carousel_slides: {
+        type: "array",
+        description:
+          "Required when format is CAROUSEL. 3–7 slides following emotional escalation: threat → pain → escalation → realization → action. Each slide is one short, punchy line. No mechanics explanations.",
+        items: {
+          type: "object",
+          properties: {
+            text: {
+              type: "string",
+              description:
+                "One short, punchy line for this slide. Must be emotionally charged — not explanatory.",
+            },
+          },
+          required: ["text"],
+        },
+      },
       cta: {
         type: "string",
         description: 'Call-to-action text (e.g. "Follow for launch updates").',

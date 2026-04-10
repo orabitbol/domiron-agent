@@ -10,6 +10,10 @@ export interface StoryFrame {
   isLogoFrame?: boolean;
 }
 
+export interface CarouselSlide {
+  text: string;
+}
+
 export interface DraftContent {
   /** REQUIRED. Must match one of the ContentFormat enum values. */
   format: "STATIC" | "CAROUSEL" | "REEL" | "STORY";
@@ -31,6 +35,9 @@ export interface DraftContent {
 
   /** Story frames — required when format is STORY. */
   story_frames?: StoryFrame[];
+
+  /** Carousel slides — required when format is CAROUSEL. Each slide is one punchy line following emotional escalation. */
+  carousel_slides?: CarouselSlide[];
 
   /** Call-to-action text. */
   cta?: string;

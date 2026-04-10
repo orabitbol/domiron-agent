@@ -12,6 +12,10 @@ export type StoryFrame = {
   isLogoFrame?: boolean;
 };
 
+export type CarouselSlide = {
+  text: string;
+};
+
 export type DraftRequestSummary = {
   id: string;
   title: string;
@@ -57,6 +61,7 @@ export type DraftFull = {
   facebookCaption: string | null;
   instagramCaption: string | null;
   storyFrames: StoryFrame[] | null;
+  carouselSlides: CarouselSlide[] | null;
   cta: string | null;
   hashtags: string[];
   visualDirection: string | null;

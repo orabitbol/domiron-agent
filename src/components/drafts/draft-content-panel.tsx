@@ -1,4 +1,4 @@
-import type { DraftFull, StoryFrame } from "@/hooks/use-drafts";
+import type { DraftFull, StoryFrame, CarouselSlide } from "@/hooks/use-drafts";
 
 interface SectionProps {
   label: string;
@@ -25,8 +25,11 @@ interface DraftContentPanelProps {
   draft: DraftFull;
 }
 
+const CAROUSEL_ARC_LABELS = ["איום", "כאב", "הסלמה", "הבנה", "פעולה"];
+
 export function DraftContentPanel({ draft }: DraftContentPanelProps) {
   const storyFrames = draft.storyFrames as StoryFrame[] | null;
+  const carouselSlides = draft.carouselSlides as CarouselSlide[] | null;
 
   return (
     <div className="space-y-4">
@@ -97,6 +100,38 @@ export function DraftContentPanel({ draft }: DraftContentPanelProps) {
         </Section>
       )}
 
+      {carouselSlides && carouselSlides.length > 0 && (
+        <Section label="סליידים לקרוסלה">
+          <div className="space-y-2">
+            {carouselSlides.map((slide, i) => (
+              <div
+                key={i}
+                className="flex gap-3 p-3 rounded-lg"
+                style={{ backgroundColor: "#0F1117" }}
+              >
+                <span
+                  className="text-xs font-semibold w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{ backgroundColor: "#2d1b69", color: "#a78bfa" }}
+                >
+                  {i + 1}
+                </span>
+                <div className="flex-1">
+                  <p>{slide.text}</p>
+                  {i < CAROUSEL_ARC_LABELS.length && (
+                    <span
+                      className="text-xs mt-1 inline-block px-2 py-0.5 rounded"
+                      style={{ backgroundColor: "#1e3a5f", color: "#60a5fa" }}
+                    >
+                      {CAROUSEL_ARC_LABELS[i]}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {draft.cta && (
         <Section label="קריאה לפעולה">
           <p>{draft.cta}</p>
@@ -137,6 +172,7 @@ export function DraftContentPanel({ draft }: DraftContentPanelProps) {
         !draft.facebookCaption &&
         !draft.instagramCaption &&
         !storyFrames?.length &&
+        !carouselSlides?.length &&
         !draft.cta &&
         !draft.hashtags?.length &&
         !draft.visualDirection &&

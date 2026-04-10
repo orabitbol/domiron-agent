@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/shared/loading-skeleton";
 import { DraftContentPanel } from "@/components/drafts/draft-content-panel";
 import { DraftMetaPanel } from "@/components/drafts/draft-meta-panel";
 import { MediaUploadSection } from "@/components/drafts/media-upload-section";
+import { FormatPreview } from "@/components/drafts/preview/format-preview";
 import {
   useDraft,
   useApproveDraft,
@@ -174,7 +175,8 @@ export default function DraftReviewPage({ params }: PageProps) {
                 currentMediaUrl={draft.mediaUrl}
               />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 space-y-4">
+              <FormatPreview draft={draft} />
               <DraftContentPanel draft={draft} />
             </div>
           </div>

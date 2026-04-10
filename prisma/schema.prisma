@@ -100,6 +100,7 @@ model Draft {
   facebookCaption   String?
   instagramCaption  String?
   storyFrames       Json?
+  carouselSlides    Json?
   cta               String?
   hashtags          String[]
   visualDirection   String?

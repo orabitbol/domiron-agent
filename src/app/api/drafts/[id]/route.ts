@@ -79,6 +79,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           ...(data.storyFrames !== undefined && {
             storyFrames: JSON.parse(JSON.stringify(data.storyFrames)),
           }),
+          ...(data.carouselSlides !== undefined && {
+            carouselSlides: JSON.parse(JSON.stringify(data.carouselSlides)),
+          }),
           ...(data.cta !== undefined && { cta: data.cta || null }),
           ...(data.hashtags !== undefined && { hashtags: data.hashtags }),
           ...(data.visualDirection !== undefined && { visualDirection: data.visualDirection || null }),

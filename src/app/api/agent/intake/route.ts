@@ -29,6 +29,9 @@ const intakeSchema = z.object({
     facebook_caption: z.string().max(2000).optional(),
     instagram_caption: z.string().max(2200).optional(),
     story_frames: z.array(storyFrameSchema).optional(),
+    carousel_slides: z
+      .array(z.object({ text: z.string().min(1) }))
+      .optional(),
     cta: z.string().optional(),
     hashtags: z.array(z.string()).optional(),
     visual_direction: z.string().optional(),
@@ -90,6 +93,9 @@ export async function POST(request: Request) {
           hashtags: content.hashtags ?? [],
           storyFrames: content.story_frames
             ? JSON.parse(JSON.stringify(content.story_frames))
+            : null,
+          carouselSlides: content.carousel_slides
+            ? JSON.parse(JSON.stringify(content.carousel_slides))
             : null,
           goal: content.goal || null,
           bestAngle: content.best_angle || null,
