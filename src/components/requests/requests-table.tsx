@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Trash2, FileText } from "lucide-react";
+import { Trash2, FileText, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { RequestStatusBadge } from "@/components/shared/status-badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
@@ -49,6 +50,20 @@ interface RequestsTableProps {
 export function RequestsTable({ requests }: RequestsTableProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const { mutateAsync: deleteRequest, isPending: isDeleting } = useDeleteRequest();
+  const queryClient = useQueryClient();
+  const { mutateAsync: generateVariants, isPending: isGenerating } = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/requests/${id}/generate-variants`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "שגיאה ביצירת גרסאות");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+    },
+  });
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -120,17 +135,39 @@ export function RequestsTable({ requests }: RequestsTableProps) {
                   {format(new Date(req.createdAt), "dd/MM/yyyy")}
                 </td>
                 <td style={{ ...cellStyle, textAlign: "center" as const }}>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setDeleteId(req.id)}
-                    disabled={req.status !== "NEW"}
-                    title={req.status !== "NEW" ? "ניתן למחוק רק בקשות בסטטוס חדש" : "מחק בקשה"}
-                    style={{ color: "#64748B" }}
-                    className="hover:text-red-400 hover:bg-red-500/10 disabled:opacity-30"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center justify-center gap-1">
+                    {req.draft && !req.title.startsWith("[") && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled={isGenerating}
+                        onClick={async () => {
+                          try {
+                            await generateVariants(req.id);
+                            toast.success("גרסאות B ו-C נוצרו — הסוכן ייצר להן טיוטות");
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "שגיאה ביצירת גרסאות");
+                          }
+                        }}
+                        title="צור גרסאות B + C"
+                        style={{ color: "#64748B" }}
+                        className="hover:text-purple-400 hover:bg-purple-500/10"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </Button>
+                    )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setDeleteId(req.id)}
+                      disabled={req.status !== "NEW"}
+                      title={req.status !== "NEW" ? "ניתן למחוק רק בקשות בסטטוס חדש" : "מחק בקשה"}
+                      style={{ color: "#64748B" }}
+                      className="hover:text-red-400 hover:bg-red-500/10 disabled:opacity-30"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
