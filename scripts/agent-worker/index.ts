@@ -29,9 +29,12 @@
 // Load .env / .env.local before anything else
 import "dotenv/config";
 
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import Anthropic from "@anthropic-ai/sdk";
 import { PrismaClient } from "@prisma/client";
-import { buildPrompt } from "./prompt";
+import { buildPrompt, type GameContext } from "./prompt";
 import type { IntakePayload, DraftContent } from "./schema";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -56,6 +59,35 @@ if (!ANTHROPIC_API_KEY) {
 
 const prisma = new PrismaClient();
 const anthropic = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
+
+// ─── Game context loader ──────────────────────────────────────────────────────
+// Loaded once at startup from game-context.json.
+// All facts Claude is allowed to cite come from this file.
+// If the file is missing or malformed → warn and continue with empty context
+// (Claude will write atmospheric content with no factual claims).
+// To update game facts: edit game-context.json and re-run the worker.
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const GAME_CONTEXT_PATH = join(__dirname, "context", "game-context.json");
+
+function loadGameContext(): GameContext {
+  try {
+    const raw = readFileSync(GAME_CONTEXT_PATH, "utf-8");
+    const parsed = JSON.parse(raw);
+    console.log(`📖  Game context loaded from game-context.json`);
+    return { facts: JSON.stringify(parsed, null, 2) };
+  } catch {
+    throw new Error(
+      `[context] Cannot load game context.\n` +
+        `Expected: ${GAME_CONTEXT_PATH}\n` +
+        `The worker cannot run without this file.`
+    );
+  }
+}
+
+// Loaded once — shared across all requests in a single worker run
+const GAME_CONTEXT: GameContext = loadGameContext();
 
 // ─── Step 1: Fetch new requests ───────────────────────────────────────────────
 
@@ -174,16 +206,19 @@ const SUBMIT_DRAFT_TOOL: Anthropic.Tool = {
   },
 };
 
-async function generateDraftWithClaude(request: {
-  id: string;
-  title: string;
-  platform: "INSTAGRAM" | "FACEBOOK" | "BOTH";
-  contentType: "POST" | "STORY" | "CAROUSEL" | "REEL";
-  sequenceDay: number | null;
-  contentPillar: string | null;
-  instructions: string | null;
-}): Promise<DraftContent> {
-  const prompt = buildPrompt(request);
+async function generateDraftWithClaude(
+  request: {
+    id: string;
+    title: string;
+    platform: "INSTAGRAM" | "FACEBOOK" | "BOTH";
+    contentType: "POST" | "STORY" | "CAROUSEL" | "REEL";
+    sequenceDay: number | null;
+    contentPillar: string | null;
+    instructions: string | null;
+  },
+  context: GameContext
+): Promise<DraftContent> {
+  const prompt = buildPrompt(request, context);
 
   const message = await anthropic.messages.create({
     model: CLAUDE_MODEL,
@@ -309,17 +344,20 @@ async function main() {
       // Lock the row immediately
       await markInProgress(req.id);
 
-      // Generate with Claude
+      // Generate with Claude — GAME_CONTEXT is injected into every prompt
       console.log(`   🧠  Calling Claude (${CLAUDE_MODEL})...`);
-      const content = await generateDraftWithClaude({
-        id: req.id,
-        title: req.title,
-        platform: req.platform as "INSTAGRAM" | "FACEBOOK" | "BOTH",
-        contentType: req.contentType as "POST" | "STORY" | "CAROUSEL" | "REEL",
-        sequenceDay: req.sequenceDay,
-        contentPillar: req.contentPillar,
-        instructions: req.instructions,
-      });
+      const content = await generateDraftWithClaude(
+        {
+          id: req.id,
+          title: req.title,
+          platform: req.platform as "INSTAGRAM" | "FACEBOOK" | "BOTH",
+          contentType: req.contentType as "POST" | "STORY" | "CAROUSEL" | "REEL",
+          sequenceDay: req.sequenceDay,
+          contentPillar: req.contentPillar,
+          instructions: req.instructions,
+        },
+        GAME_CONTEXT
+      );
 
       console.log(`   📤  Submitting to intake...`);
       const result = await postToIntake(req.id, content, {
