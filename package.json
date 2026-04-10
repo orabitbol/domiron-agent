@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "agent:worker": "tsx scripts/agent-worker/index.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -35,9 +36,14 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^16.4.7",
     "eslint": "^9",
     "eslint-config-next": "16.1.7",
     "tailwindcss": "^4",
+    "tsx": "^4.19.2",
     "typescript": "^5"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.52.0"
   }
 }

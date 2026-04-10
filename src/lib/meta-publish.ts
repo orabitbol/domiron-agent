@@ -89,6 +89,17 @@ function isExpiredTokenError(data: Record<string, unknown>): boolean {
   return err.type === "OAuthException" && (err.code === 190 || err.code === "190");
 }
 
+/**
+ * Returns true when Meta responds with a permissions error.
+ * Code 10  → API permission denied (missing permission in the token scope)
+ * Code 200 → Permissions error (token does not have the required permission)
+ */
+function isPermissionError(data: Record<string, unknown>): boolean {
+  if (!data.error || typeof data.error !== "object") return false;
+  const err = data.error as Record<string, unknown>;
+  return err.code === 10 || err.code === "10" || err.code === 200 || err.code === "200";
+}
+
 // âââ Token refresh (exported for use in the refresh API route) âââââââââââââââââ
 
 /**
@@ -184,10 +195,15 @@ async function publishToFacebook(
     console.log(`[Facebook] POST /${pageId}/photos â ${res.status}:`, JSON.stringify(data));
 
     if (!res.ok) {
+      const errMsg = extractMetaError(data);
+      console.error(`[meta-publish] FACEBOOK: ERROR ${errMsg}`);
       if (isExpiredTokenError(data)) {
-        return { platform: "FACEBOOK", success: false, failureReason: extractMetaError(data), isTokenExpired: true };
+        return { platform: "FACEBOOK", success: false, failureReason: errMsg, isTokenExpired: true };
       }
-      return { platform: "FACEBOOK", success: false, failureReason: extractMetaError(data) };
+      if (isPermissionError(data)) {
+        console.error(`[meta-publish] FACEBOOK: Permission denied — ensure the page token includes: pages_manage_posts, pages_read_engagement`);
+      }
+      return { platform: "FACEBOOK", success: false, failureReason: errMsg };
     }
 
     // /photos returns: { id: "photo_id" } or { id: "photo_id", post_id: "page_id_post_num" }
@@ -221,10 +237,15 @@ async function publishToFacebook(
     console.log(`[Facebook] POST /${pageId}/feed â ${res.status}:`, JSON.stringify(data));
 
     if (!res.ok) {
+      const errMsg = extractMetaError(data);
+      console.error(`[meta-publish] FACEBOOK: ERROR ${errMsg}`);
       if (isExpiredTokenError(data)) {
-        return { platform: "FACEBOOK", success: false, failureReason: extractMetaError(data), isTokenExpired: true };
+        return { platform: "FACEBOOK", success: false, failureReason: errMsg, isTokenExpired: true };
       }
-      return { platform: "FACEBOOK", success: false, failureReason: extractMetaError(data) };
+      if (isPermissionError(data)) {
+        console.error(`[meta-publish] FACEBOOK: Permission denied — ensure the page token includes: pages_manage_posts, pages_read_engagement`);
+      }
+      return { platform: "FACEBOOK", success: false, failureReason: errMsg };
     }
 
     // /feed returns: { id: "{page_id}_{post_id}" }
@@ -627,11 +648,20 @@ export async function executePublishJob(jobId: string): Promise<ExecutePublishRe
           result = await publishToInstagram(connection.pageId, connection.pageName, newToken, draftContent);
         }
       } else {
+        // Token refresh failed — deactivate the connection so Settings shows reconnect needed.
+        await prisma.metaConnection.update({
+          where: { id: connection.id },
+          data: { isActive: false },
+        });
+        console.error(
+          `[meta-publish] ${plat}: ERROR Token refresh failed after OAuthException 190. ` +
+          `Connection deactivated — user must reconnect in Settings.`
+        );
         result = {
           ...result,
           failureReason:
             `${plat} token is invalid or expired and could not be refreshed. ` +
-            `Please reconnect your account in Settings.`,
+            `The connection has been deactivated. Please reconnect your account in Settings.`,
         };
       }
     }
