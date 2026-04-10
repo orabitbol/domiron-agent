@@ -23,25 +23,33 @@ export async function GET() {
   const state = crypto.randomUUID();
   console.log("[meta/auth-url] generated state:", state);
 
-  // Uses Facebook Login for Business configuration — permissions are defined
-  // in the Meta Developer Console under the Business Login Config, not here.
+  // Standard Facebook Login (scope-based).
+  // Permissions proven to work with the "Domiron final" Meta app:
+  //   pages_show_list         — let the user select which pages to connect
+  //   pages_read_engagement   — required by /me/accounts and page data reads
+  //   pages_manage_posts      — required to publish posts to a Facebook Page
+  //   business_management     — required when the page is connected to Business Manager
+  const OAUTH_SCOPE = [
+    "pages_show_list",
+    "pages_read_engagement",
+    "pages_manage_posts",
+    "business_management",
+  ].join(",");
+
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: process.env.META_REDIRECT_URI!,
     response_type: "code",
     state,
-    config_id: process.env.META_CONFIG_ID!,
+    scope: OAUTH_SCOPE,
   });
 
   const oauthUrl = `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${params.toString()}`;
 
-  // Log every param key and value (except state which changes per request).
-  // This makes it unambiguous in Vercel logs whether config_id or scope is active.
   console.log("[meta/auth-url] params: client_id=", process.env.META_APP_ID);
   console.log("[meta/auth-url] params: redirect_uri=", process.env.META_REDIRECT_URI);
   console.log("[meta/auth-url] params: response_type=code");
-  console.log("[meta/auth-url] params: config_id=", process.env.META_CONFIG_ID);
-  console.log("[meta/auth-url] params: scope= (ABSENT — using config_id flow)");
+  console.log("[meta/auth-url] params: scope=", OAUTH_SCOPE);
   console.log("[meta/auth-url] full param keys:", [...params.keys()].join(", "));
 
   // Redirect directly to Facebook — cookie is set on THIS response before the
