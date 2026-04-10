@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
+import { FileText, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,11 +38,58 @@ const PLATFORM_OPTIONS = [
 ];
 
 const CONTENT_TYPE_OPTIONS = [
-  { value: "POST", label: "פוסט" },
-  { value: "STORY", label: "סטורי" },
-  { value: "CAROUSEL", label: "קרוסלה" },
-  { value: "REEL", label: "ריל" },
+  { value: "POST", label: "פוסט", disabled: false },
+  { value: "STORY", label: "סטורי (לא זמין)", disabled: true },
+  { value: "CAROUSEL", label: "קרוסלה", disabled: false },
+  { value: "REEL", label: "ריל (לא זמין)", disabled: true },
 ];
+
+// ─── Presets ──────────────────────────────────────────────────────────────────
+
+interface Preset {
+  id: string;
+  icon: typeof FileText;
+  title: string;
+  subtitle: string;
+  values: Partial<RequestFormData>;
+}
+
+const PRESETS: Preset[] = [
+  {
+    id: "fb-post",
+    icon: FileText,
+    title: "פוסט פייסבוק",
+    subtitle: "מסר חד אחד",
+    values: {
+      title: "פוסט פייסבוק — מסר חד",
+      platform: "FACEBOOK" as const,
+      contentType: "POST" as const,
+      contentPillar: "קרב",
+      instructions:
+        "פוסט אחד חד. הוק חזק, כיתוב קצר, CTA ישיר. " +
+        "לא מסביר — מכה. " +
+        "מתאים לתמונה בודדת או טקסט בלבד.",
+    },
+  },
+  {
+    id: "fb-carousel",
+    icon: Layers,
+    title: "קרוסלת פייסבוק",
+    subtitle: "רצף מסרים עם הסלמה",
+    values: {
+      title: "קרוסלת פייסבוק — הסלמה רגשית",
+      platform: "FACEBOOK" as const,
+      contentType: "CAROUSEL" as const,
+      contentPillar: "כלכלה",
+      instructions:
+        "קרוסלה של 3–5 סליידים. כל סלייד = שורה אחת חדה. " +
+        "הסלמה: איום → כאב → הסלמה → הבנה → פעולה. " +
+        "לא מצגת. לא שיעור. רצף מכות.",
+    },
+  },
+];
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export function RequestForm() {
   const router = useRouter();
@@ -50,6 +98,7 @@ export function RequestForm() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<RequestFormData>({
     resolver: zodResolver(requestSchema),
@@ -60,6 +109,18 @@ export function RequestForm() {
       targetPublishDate: "",
     },
   });
+
+  const applyPreset = (preset: Preset) => {
+    const entries = Object.entries(preset.values) as Array<
+      [keyof RequestFormData, string]
+    >;
+    for (const [key, value] of entries) {
+      if (value !== undefined) {
+        setValue(key, value, { shouldValidate: true });
+      }
+    }
+    toast.success(`הוחל: ${preset.title}`);
+  };
 
   const onSubmit = async (data: RequestFormData) => {
     try {
@@ -72,165 +133,240 @@ export function RequestForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 max-w-2xl">
-      {/* Title */}
-      <div className="space-y-2">
-        <Label style={{ color: "#F1F5F9" }}>
-          כותרת הבקשה <span style={{ color: "#f87171" }}>*</span>
-        </Label>
-        <Input
-          {...register("title")}
-          placeholder="לדוגמה: פוסט ל-Black Friday"
-          className="border"
-          style={inputStyle}
-        />
-        {errors.title && (
-          <p className="text-sm" style={{ color: "#f87171" }}>
-            {errors.title.message}
-          </p>
-        )}
-      </div>
-
-      {/* Platform */}
-      <div className="space-y-2">
-        <Label style={{ color: "#F1F5F9" }}>
-          פלטפורמה <span style={{ color: "#f87171" }}>*</span>
-        </Label>
-        <select {...register("platform")} style={selectStyle}>
-          <option value="">בחר פלטפורמה</option>
-          {PLATFORM_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        {errors.platform && (
-          <p className="text-sm" style={{ color: "#f87171" }}>
-            {errors.platform.message ?? "יש לבחור פלטפורמה"}
-          </p>
-        )}
-      </div>
-
-      {/* Content Type */}
-      <div className="space-y-2">
-        <Label style={{ color: "#F1F5F9" }}>
-          סוג תוכן <span style={{ color: "#f87171" }}>*</span>
-        </Label>
-        <select {...register("contentType")} style={selectStyle}>
-          <option value="">בחר סוג תוכן</option>
-          {CONTENT_TYPE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-        {errors.contentType && (
-          <p className="text-sm" style={{ color: "#f87171" }}>
-            {errors.contentType.message ?? "יש לבחור סוג תוכן"}
-          </p>
-        )}
-      </div>
-
-      {/* Sequence Day */}
-      <div className="space-y-2">
-        <Label style={{ color: "#F1F5F9" }}>יום בסדרה</Label>
-        <Input
-          type="number"
-          min={1}
-          max={365}
-          {...register("sequenceDay", {
-            setValueAs: (v) =>
-              v === "" || v === undefined ? undefined : parseInt(v, 10),
-          })}
-          placeholder="לדוגמה: 1"
-          className="border"
-          style={inputStyle}
-        />
-        {errors.sequenceDay && (
-          <p className="text-sm" style={{ color: "#f87171" }}>
-            {errors.sequenceDay.message}
-          </p>
-        )}
-      </div>
-
-      {/* Content Pillar */}
-      <div className="space-y-2">
-        <Label style={{ color: "#F1F5F9" }}>עמוד תוכן</Label>
-        <Input
-          {...register("contentPillar")}
-          placeholder="לדוגמה: חינוך, השראה, מכירה"
-          className="border"
-          style={inputStyle}
-        />
-        {errors.contentPillar && (
-          <p className="text-sm" style={{ color: "#f87171" }}>
-            {errors.contentPillar.message}
-          </p>
-        )}
-      </div>
-
-      {/* Instructions */}
-      <div className="space-y-2">
-        <Label style={{ color: "#F1F5F9" }}>הוראות</Label>
-        <textarea
-          {...register("instructions")}
-          rows={4}
-          placeholder="הוסף הוראות או הנחיות לבקשה..."
-          className="flex w-full rounded-md border px-3 py-2 text-sm resize-none focus-visible:outline-none"
-          style={{
-            ...inputStyle,
-            borderColor: "#2D3148",
-          }}
-        />
-        {errors.instructions && (
-          <p className="text-sm" style={{ color: "#f87171" }}>
-            {errors.instructions.message}
-          </p>
-        )}
-      </div>
-
-      {/* Target Publish Date */}
-      <div className="space-y-2">
-        <Label style={{ color: "#F1F5F9" }}>תאריך פרסום מיועד</Label>
-        <Input
-          type="date"
-          {...register("targetPublishDate", {
-            setValueAs: (v) => (v === "" ? undefined : v),
-          })}
-          className="border"
-          style={inputStyle}
-          dir="ltr"
-        />
-        {errors.targetPublishDate && (
-          <p className="text-sm" style={{ color: "#f87171" }}>
-            {errors.targetPublishDate.message}
-          </p>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-3 pt-2">
-        <Button
-          type="submit"
-          disabled={isPending}
-          style={{ backgroundColor: "#6B5CF6", color: "#ffffff" }}
+    <div className="space-y-6 max-w-2xl">
+      {/* ── Presets ──────────────────────────────────────────────────────── */}
+      <div className="space-y-3">
+        <p
+          className="text-xs font-bold uppercase tracking-wider"
+          style={{ color: "#64748B" }}
         >
-          {isPending ? "שומר..." : "שמור בקשה"}
-        </Button>
-        <Link href="/requests">
-          <Button
-            type="button"
-            variant="outline"
-            style={{
-              borderColor: "#2D3148",
-              color: "#94A3B8",
-              backgroundColor: "transparent",
-            }}
-          >
-            ביטול
-          </Button>
-        </Link>
+          התחל מתבנית
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {PRESETS.map((preset) => {
+            const Icon = preset.icon;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                className="rounded-xl border p-4 text-right transition-all duration-150 hover:scale-[1.02]"
+                style={{
+                  backgroundColor: "#1A1D27",
+                  borderColor: "#2D3148",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#6B5CF6";
+                  e.currentTarget.style.backgroundColor = "#1e2030";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "#2D3148";
+                  e.currentTarget.style.backgroundColor = "#1A1D27";
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{ backgroundColor: "#6B5CF620" }}
+                  >
+                    <Icon className="w-4 h-4" style={{ color: "#a78bfa" }} />
+                  </div>
+                  <div>
+                    <p
+                      className="text-sm font-semibold"
+                      style={{ color: "#F1F5F9" }}
+                    >
+                      {preset.title}
+                    </p>
+                    <p
+                      className="text-xs mt-0.5"
+                      style={{ color: "#64748B" }}
+                    >
+                      {preset.subtitle}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px]" style={{ color: "#475569" }}>
+          בחירת תבנית ממלאת את השדות — אפשר לערוך הכל לפני שמירה
+        </p>
       </div>
-    </form>
+
+      {/* ── Divider ─────────────────────────────────────────────────────── */}
+      <div
+        className="h-px"
+        style={{ backgroundColor: "#2D3148" }}
+      />
+
+      {/* ── Form ────────────────────────────────────────────────────────── */}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {/* Title */}
+        <div className="space-y-2">
+          <Label style={{ color: "#F1F5F9" }}>
+            כותרת הבקשה <span style={{ color: "#f87171" }}>*</span>
+          </Label>
+          <Input
+            {...register("title")}
+            placeholder="לדוגמה: פוסט ל-Black Friday"
+            className="border"
+            style={inputStyle}
+          />
+          {errors.title && (
+            <p className="text-sm" style={{ color: "#f87171" }}>
+              {errors.title.message}
+            </p>
+          )}
+        </div>
+
+        {/* Platform */}
+        <div className="space-y-2">
+          <Label style={{ color: "#F1F5F9" }}>
+            פלטפורמה <span style={{ color: "#f87171" }}>*</span>
+          </Label>
+          <select {...register("platform")} style={selectStyle}>
+            <option value="">בחר פלטפורמה</option>
+            {PLATFORM_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          {errors.platform && (
+            <p className="text-sm" style={{ color: "#f87171" }}>
+              {errors.platform.message ?? "יש לבחור פלטפורמה"}
+            </p>
+          )}
+        </div>
+
+        {/* Content Type */}
+        <div className="space-y-2">
+          <Label style={{ color: "#F1F5F9" }}>
+            סוג תוכן <span style={{ color: "#f87171" }}>*</span>
+          </Label>
+          <select {...register("contentType")} style={selectStyle}>
+            <option value="">בחר סוג תוכן</option>
+            {CONTENT_TYPE_OPTIONS.map((opt) => (
+              <option
+                key={opt.value}
+                value={opt.value}
+                disabled={opt.disabled}
+                style={opt.disabled ? { color: "#475569" } : undefined}
+              >
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          {errors.contentType && (
+            <p className="text-sm" style={{ color: "#f87171" }}>
+              {errors.contentType.message ?? "יש לבחור סוג תוכן"}
+            </p>
+          )}
+        </div>
+
+        {/* Sequence Day */}
+        <div className="space-y-2">
+          <Label style={{ color: "#F1F5F9" }}>יום בסדרה</Label>
+          <Input
+            type="number"
+            min={1}
+            max={365}
+            {...register("sequenceDay", {
+              setValueAs: (v) =>
+                v === "" || v === undefined ? undefined : parseInt(v, 10),
+            })}
+            placeholder="לדוגמה: 1"
+            className="border"
+            style={inputStyle}
+          />
+          {errors.sequenceDay && (
+            <p className="text-sm" style={{ color: "#f87171" }}>
+              {errors.sequenceDay.message}
+            </p>
+          )}
+        </div>
+
+        {/* Content Pillar */}
+        <div className="space-y-2">
+          <Label style={{ color: "#F1F5F9" }}>עמוד תוכן</Label>
+          <Input
+            {...register("contentPillar")}
+            placeholder="לדוגמה: חינוך, השראה, מכירה"
+            className="border"
+            style={inputStyle}
+          />
+          {errors.contentPillar && (
+            <p className="text-sm" style={{ color: "#f87171" }}>
+              {errors.contentPillar.message}
+            </p>
+          )}
+        </div>
+
+        {/* Instructions */}
+        <div className="space-y-2">
+          <Label style={{ color: "#F1F5F9" }}>הוראות</Label>
+          <textarea
+            {...register("instructions")}
+            rows={4}
+            placeholder="הוסף הוראות או הנחיות לבקשה..."
+            className="flex w-full rounded-md border px-3 py-2 text-sm resize-none focus-visible:outline-none"
+            style={{
+              ...inputStyle,
+              borderColor: "#2D3148",
+            }}
+          />
+          {errors.instructions && (
+            <p className="text-sm" style={{ color: "#f87171" }}>
+              {errors.instructions.message}
+            </p>
+          )}
+        </div>
+
+        {/* Target Publish Date */}
+        <div className="space-y-2">
+          <Label style={{ color: "#F1F5F9" }}>תאריך פרסום מיועד</Label>
+          <Input
+            type="date"
+            {...register("targetPublishDate", {
+              setValueAs: (v) => (v === "" ? undefined : v),
+            })}
+            className="border"
+            style={inputStyle}
+            dir="ltr"
+          />
+          {errors.targetPublishDate && (
+            <p className="text-sm" style={{ color: "#f87171" }}>
+              {errors.targetPublishDate.message}
+            </p>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-2">
+          <Button
+            type="submit"
+            disabled={isPending}
+            style={{ backgroundColor: "#6B5CF6", color: "#ffffff" }}
+          >
+            {isPending ? "שומר..." : "שמור בקשה"}
+          </Button>
+          <Link href="/requests">
+            <Button
+              type="button"
+              variant="outline"
+              style={{
+                borderColor: "#2D3148",
+                color: "#94A3B8",
+                backgroundColor: "transparent",
+              }}
+            >
+              ביטול
+            </Button>
+          </Link>
+        </div>
+      </form>
+    </div>
   );
 }
