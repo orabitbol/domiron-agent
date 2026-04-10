@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -51,6 +52,7 @@ interface Preset {
   icon: typeof FileText;
   title: string;
   subtitle: string;
+  hint: string;
   values: Partial<RequestFormData>;
 }
 
@@ -58,33 +60,43 @@ const PRESETS: Preset[] = [
   {
     id: "fb-post",
     icon: FileText,
-    title: "פוסט פייסבוק",
-    subtitle: "מסר חד אחד",
+    title: "מסר אחד חד — מכה מהירה",
+    subtitle: "פוסט פייסבוק",
+    hint: "כשיש לך מסר אחד חזק",
     values: {
-      title: "פוסט פייסבוק — מסר חד",
+      title: "פוסט פייסבוק — מכה מהירה",
       platform: "FACEBOOK" as const,
       contentType: "POST" as const,
       contentPillar: "קרב",
       instructions:
-        "פוסט אחד חד. הוק חזק, כיתוב קצר, CTA ישיר. " +
-        "לא מסביר — מכה. " +
-        "מתאים לתמונה בודדת או טקסט בלבד.",
+        "פוסט אחד. שורה אחת שעוצרת בגלילה.\n" +
+        "הטון: מישהו שרואה את הקורא מפסיד ולא יכול לשתוק.\n" +
+        "דחוף. מלחיץ. חד. משפטים של 3–8 מילים.\n" +
+        "לא מסביר. לא מפרט. מכה.\n" +
+        "דוגמה לטון: \"תקפו אותך.\" / \"הזהב? נגמר.\" / \"ישנת. שילמת.\"\n" +
+        "CTA ישיר. תמונה בודדת או טקסט בלבד.",
     },
   },
   {
     id: "fb-carousel",
     icon: Layers,
-    title: "קרוסלת פייסבוק",
-    subtitle: "רצף מסרים עם הסלמה",
+    title: "רצף שמפיל — הסלמה רגשית",
+    subtitle: "קרוסלת פייסבוק",
+    hint: "כשאתה רוצה להכניס את הקורא לתהליך",
     values: {
       title: "קרוסלת פייסבוק — הסלמה רגשית",
       platform: "FACEBOOK" as const,
       contentType: "CAROUSEL" as const,
-      contentPillar: "כלכלה",
+      contentPillar: "תחרות",
       instructions:
-        "קרוסלה של 3–5 סליידים. כל סלייד = שורה אחת חדה. " +
-        "הסלמה: איום → כאב → הסלמה → הבנה → פעולה. " +
-        "לא מצגת. לא שיעור. רצף מכות.",
+        "קרוסלה של 3–5 סליידים. כל סלייד = שורה אחת חדה.\n" +
+        "הטון: מישהו שמראה לקורא שאחרים עקפו אותו.\n" +
+        "השוואה ישירה. פגיעה באגו. תחושת נחיתות.\n" +
+        "\"כולם כבר בעיר 3. אתה ב-1.\"\n" +
+        "\"הוא לא יותר חזק. הוא פשוט לא ישן.\"\n" +
+        "\"חשבת שאתה טוב? תבדוק את הדירוג.\"\n" +
+        "הסלמה: איום → כאב → הסלמה → הבנה → פעולה.\n" +
+        "לא מצגת. לא שיעור. רצף מכות שדוקרות באגו.",
     },
   },
 ];
@@ -94,6 +106,7 @@ const PRESETS: Preset[] = [
 export function RequestForm() {
   const router = useRouter();
   const { mutateAsync, isPending } = useCreateRequest();
+  const [activePreset, setActivePreset] = useState<string | null>(null);
 
   const {
     register,
@@ -119,7 +132,8 @@ export function RequestForm() {
         setValue(key, value, { shouldValidate: true });
       }
     }
-    toast.success(`הוחל: ${preset.title}`);
+    setActivePreset(preset.id);
+    toast.success(`הוחל: ${preset.subtitle}`);
   };
 
   const onSubmit = async (data: RequestFormData) => {
@@ -145,44 +159,61 @@ export function RequestForm() {
         <div className="grid grid-cols-2 gap-3">
           {PRESETS.map((preset) => {
             const Icon = preset.icon;
+            const isActive = activePreset === preset.id;
             return (
               <button
                 key={preset.id}
                 type="button"
                 onClick={() => applyPreset(preset)}
-                className="rounded-xl border p-4 text-right transition-all duration-150 hover:scale-[1.02]"
+                className="rounded-xl border p-4 text-right transition-all duration-200 hover:scale-[1.02]"
                 style={{
-                  backgroundColor: "#1A1D27",
-                  borderColor: "#2D3148",
+                  backgroundColor: isActive ? "#1e2030" : "#1A1D27",
+                  borderColor: isActive ? "#6B5CF6" : "#2D3148",
+                  boxShadow: isActive ? "0 0 20px rgba(107,92,246,0.15)" : "none",
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "#6B5CF6";
-                  e.currentTarget.style.backgroundColor = "#1e2030";
+                  if (!isActive) {
+                    e.currentTarget.style.borderColor = "#6B5CF680";
+                    e.currentTarget.style.backgroundColor = "#1e2030";
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "#2D3148";
-                  e.currentTarget.style.backgroundColor = "#1A1D27";
+                  if (!isActive) {
+                    e.currentTarget.style.borderColor = "#2D3148";
+                    e.currentTarget.style.backgroundColor = "#1A1D27";
+                  }
                 }}
               >
                 <div className="flex items-start gap-3">
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{ backgroundColor: "#6B5CF620" }}
+                    style={{
+                      backgroundColor: isActive ? "#6B5CF630" : "#6B5CF615",
+                    }}
                   >
-                    <Icon className="w-4 h-4" style={{ color: "#a78bfa" }} />
+                    <Icon
+                      className="w-4 h-4"
+                      style={{ color: isActive ? "#c4b5fd" : "#a78bfa" }}
+                    />
                   </div>
-                  <div>
+                  <div className="space-y-1">
                     <p
-                      className="text-sm font-semibold"
+                      className="text-sm font-semibold leading-tight"
                       style={{ color: "#F1F5F9" }}
                     >
                       {preset.title}
                     </p>
                     <p
-                      className="text-xs mt-0.5"
-                      style={{ color: "#64748B" }}
+                      className="text-[11px] font-medium"
+                      style={{ color: isActive ? "#a78bfa" : "#64748B" }}
                     >
                       {preset.subtitle}
+                    </p>
+                    <p
+                      className="text-[10px]"
+                      style={{ color: "#475569" }}
+                    >
+                      {preset.hint}
                     </p>
                   </div>
                 </div>
@@ -191,15 +222,12 @@ export function RequestForm() {
           })}
         </div>
         <p className="text-[11px]" style={{ color: "#475569" }}>
-          בחירת תבנית ממלאת את השדות — אפשר לערוך הכל לפני שמירה
+          לא חייבים לבחור תבנית — אפשר למלא ידנית
         </p>
       </div>
 
       {/* ── Divider ─────────────────────────────────────────────────────── */}
-      <div
-        className="h-px"
-        style={{ backgroundColor: "#2D3148" }}
-      />
+      <div className="h-px" style={{ backgroundColor: "#2D3148" }} />
 
       {/* ── Form ────────────────────────────────────────────────────────── */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
