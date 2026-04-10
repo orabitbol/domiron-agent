@@ -615,6 +615,29 @@ export async function executePublishJob(
     slideImageUrls: options?.slideImageUrls,
   };
 
+  // ── Block unsupported formats ────────────────────────────────────────────
+  // STORY and REEL cannot be published as regular posts — they would lose
+  // their structure and produce results that don't match the preview.
+  if (draft.format === "STORY") {
+    const reason = "STORY format publishing is not yet supported. Stories require per-frame image export or video generation.";
+    console.error(`[meta-publish] BLOCKED: ${reason}`);
+    await prisma.publishJob.update({
+      where: { id: jobId },
+      data: { status: "FAILED", failureReason: reason },
+    });
+    return { overallStatus: "FAILED", results: [{ platform: "FACEBOOK", success: false, failureReason: reason }] };
+  }
+
+  if (draft.format === "REEL") {
+    const reason = "REEL format publishing is not yet supported. Reels require video content which the system does not generate.";
+    console.error(`[meta-publish] BLOCKED: ${reason}`);
+    await prisma.publishJob.update({
+      where: { id: jobId },
+      data: { status: "FAILED", failureReason: reason },
+    });
+    return { overallStatus: "FAILED", results: [{ platform: "FACEBOOK", success: false, failureReason: reason }] };
+  }
+
   const isCarousel = draft.format === "CAROUSEL" && options?.slideImageUrls && options.slideImageUrls.length > 0;
   if (isCarousel) {
     console.log(`[meta-publish] Carousel mode: ${options!.slideImageUrls!.length} slide images provided`);

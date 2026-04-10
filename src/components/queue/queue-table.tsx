@@ -226,6 +226,15 @@ export function QueueTable({ jobs }: QueueTableProps) {
                         size="sm"
                         disabled={isPublishing}
                         onClick={() => {
+                          // Block formats that cannot be published correctly
+                          if (job.draft.format === "STORY") {
+                            toast.error("פרסום סטורי עדיין לא נתמך — נדרש ייצוא פריימים כתמונות או וידאו.");
+                            return;
+                          }
+                          if (job.draft.format === "REEL") {
+                            toast.error("פרסום ריל עדיין לא נתמך — נדרש ייצוא וידאו.");
+                            return;
+                          }
                           const needsMedia =
                             job.draft.request.platform === "INSTAGRAM" ||
                             job.draft.request.platform === "BOTH";

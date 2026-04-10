@@ -206,7 +206,10 @@ const SUBMIT_DRAFT_TOOL: Anthropic.Tool = {
       hashtags: {
         type: "array",
         items: { type: "string" },
-        description: "5–15 hashtags as plain strings WITHOUT the # symbol.",
+        description:
+          "MUST be a JSON array of strings. Example: [\"domiron\", \"strategy\", \"war\"]. " +
+          "Each item is one hashtag without the # symbol. Never return a comma-separated string. " +
+          "If unsure, return an empty array [].",
       },
       visual_direction: {
         type: "string",
@@ -253,7 +256,29 @@ async function generateDraftWithClaude(
     );
   }
 
-  return toolUse.input as DraftContent;
+  const raw = toolUse.input as DraftContent;
+
+  // ── Normalize hashtags ──────────────────────────────────────────────────
+  // Claude occasionally returns a comma-separated string instead of an array.
+  // Coerce to string[] defensively so intake validation never fails on this.
+  if (raw.hashtags !== undefined) {
+    if (typeof raw.hashtags === "string") {
+      console.warn(`[prompt] hashtags was a string — normalizing to array`);
+      raw.hashtags = (raw.hashtags as unknown as string)
+        .split(/[,،;|]+/)
+        .map((t) => t.trim().replace(/^#/, ""))
+        .filter(Boolean);
+    } else if (Array.isArray(raw.hashtags)) {
+      raw.hashtags = raw.hashtags
+        .map((t) => (typeof t === "string" ? t.trim().replace(/^#/, "") : ""))
+        .filter(Boolean);
+    } else {
+      console.warn(`[prompt] hashtags was unexpected type (${typeof raw.hashtags}) — defaulting to []`);
+      raw.hashtags = [];
+    }
+  }
+
+  return raw;
 }
 
 // ─── Step 5: POST to /api/agent/intake ───────────────────────────────────────
