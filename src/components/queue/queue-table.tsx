@@ -312,20 +312,43 @@ export function QueueTable({ jobs }: QueueTableProps) {
                         נסה שוב
                       </Button>
                     )}
-                    {job.status === "PUBLISHED" && job.publishedUrl &&
-                      /^https:\/\/(www\.)?(facebook|instagram)\.com\/[a-zA-Z0-9_./?=&%-]+$/.test(job.publishedUrl) &&
-                      !job.publishedUrl.includes("%23") && !job.publishedUrl.includes("#") && (
-                      <a
-                        href={job.publishedUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs"
-                        style={{ color: "#60a5fa" }}
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        צפה בפוסט
-                      </a>
-                    )}
+                    {(() => {
+                      // Debug: log the exact publishedUrl for every PUBLISHED job
+                      if (job.status === "PUBLISHED") {
+                        console.log(`[QueueTable] Job ${job.id}: publishedUrl = "${job.publishedUrl}"`);
+                      }
+
+                      const url = job.publishedUrl;
+                      const isValid =
+                        job.status === "PUBLISHED" &&
+                        typeof url === "string" &&
+                        url.startsWith("https://") &&
+                        /^https:\/\/(www\.)?(facebook|instagram)\.com\/\d/.test(url) &&
+                        !url.includes("#") &&
+                        !url.includes("%23") &&
+                        url.length > 30;
+
+                      if (job.status === "PUBLISHED" && !isValid) {
+                        console.warn(`[QueueTable] Job ${job.id}: INVALID publishedUrl — hidden`);
+                      }
+
+                      return isValid ? (
+                        <a
+                          href={url!}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs"
+                          style={{ color: "#60a5fa" }}
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          צפה בפוסט
+                        </a>
+                      ) : job.status === "PUBLISHED" ? (
+                        <span className="text-[10px]" style={{ color: "#f87171" }}>
+                          URL לא תקין
+                        </span>
+                      ) : null;
+                    })()}
                   </td>
                 </tr>
               );
