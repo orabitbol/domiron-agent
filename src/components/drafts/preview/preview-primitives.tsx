@@ -3,40 +3,173 @@
  *
  * Every preview renderer imports from here so all formats share the
  * same dark / war / strategic Domiron aesthetic without duplicating styles.
+ *
+ * v2 — Premium upgrade:
+ *   - Angle-aware theming (auto-detects battle/economy/spy/tribe/competition)
+ *   - Deeper cinematic multi-layer backgrounds
+ *   - Stronger typography with glow
+ *   - Atmospheric decorative layers (fog, edge vignette, particle energy)
+ *   - Premium slide/scene indicators
  */
 
 import type { ReactNode } from "react";
 
-// ─── Color tokens (match globals.css) ────────────────────────────────────────
+// ─── Color tokens ────────────────────────────────────────────────────────────
 
 export const colors = {
-  /** Deep background */
-  bg: "#0A0C12",
+  /** Deepest background */
+  bg: "#060810",
   /** Card / surface background */
-  surface: "#12141D",
+  surface: "#0C0E16",
   /** Elevated surface */
-  elevated: "#1A1D27",
+  elevated: "#14171F",
   /** Border */
-  border: "#2D3148",
+  border: "#1E2235",
   /** Primary gold accent */
   gold: "#D4A843",
+  /** Bright gold for highlights */
+  goldBright: "#F0C85A",
   /** Danger / war red */
   red: "#C93545",
+  /** Deep crimson */
+  crimson: "#7A1A28",
   /** Primary text */
   text: "#F1F5F9",
-  /** Muted / secondary text */
-  muted: "#8B95A8",
+  /** Secondary text */
+  textSecondary: "#C8D0DC",
+  /** Muted / tertiary text */
+  muted: "#6B7590",
   /** CTA accent (purple, matches --primary) */
   primary: "#6B5CF6",
-  /** Overlay start */
-  overlayFrom: "rgba(10,12,18,0.92)",
-  /** Overlay end */
-  overlayTo: "rgba(10,12,18,0.45)",
+  /** Overlay dense */
+  overlayDense: "rgba(6,8,16,0.95)",
+  /** Overlay medium */
+  overlayMedium: "rgba(6,8,16,0.75)",
+  /** Overlay light */
+  overlayLight: "rgba(6,8,16,0.35)",
 } as const;
 
+// ─── Angle-aware theming ─────────────────────────────────────────────────────
+// Automatically detects the content angle from visual_direction text and returns
+// a color palette that tints the preview background accordingly.
+
+export type ContentAngle = "battle" | "economy" | "spy" | "tribe" | "competition" | "default";
+
+interface AngleTheme {
+  /** Primary accent color for this angle */
+  accent: string;
+  /** Secondary glow color */
+  glow: string;
+  /** Radial gradient layers for the frame background */
+  bgLayers: string;
+  /** Edge glow color */
+  edgeGlow: string;
+  /** Hebrew label */
+  label: string;
+}
+
+const ANGLE_THEMES: Record<ContentAngle, AngleTheme> = {
+  battle: {
+    accent: "#E8423A",
+    glow: "rgba(232,66,58,0.18)",
+    bgLayers: `
+      radial-gradient(ellipse at 50% 0%, rgba(232,66,58,0.14) 0%, transparent 55%),
+      radial-gradient(ellipse at 20% 90%, rgba(255,120,50,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 60%, rgba(180,30,20,0.08) 0%, transparent 45%)
+    `,
+    edgeGlow: "rgba(232,66,58,0.12)",
+    label: "קרב",
+  },
+  economy: {
+    accent: "#D4A843",
+    glow: "rgba(212,168,67,0.20)",
+    bgLayers: `
+      radial-gradient(ellipse at 40% 20%, rgba(212,168,67,0.14) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 85%, rgba(240,200,90,0.06) 0%, transparent 45%),
+      radial-gradient(ellipse at 15% 70%, rgba(180,140,40,0.08) 0%, transparent 50%)
+    `,
+    edgeGlow: "rgba(212,168,67,0.10)",
+    label: "כלכלה",
+  },
+  spy: {
+    accent: "#4A9EE8",
+    glow: "rgba(74,158,232,0.14)",
+    bgLayers: `
+      radial-gradient(ellipse at 60% 30%, rgba(74,158,232,0.10) 0%, transparent 50%),
+      radial-gradient(ellipse at 30% 80%, rgba(40,80,160,0.08) 0%, transparent 45%),
+      radial-gradient(ellipse at 80% 70%, rgba(100,60,200,0.06) 0%, transparent 50%)
+    `,
+    edgeGlow: "rgba(74,158,232,0.10)",
+    label: "ריגול",
+  },
+  tribe: {
+    accent: "#9B6BF6",
+    glow: "rgba(155,107,246,0.16)",
+    bgLayers: `
+      radial-gradient(ellipse at 50% 15%, rgba(155,107,246,0.12) 0%, transparent 50%),
+      radial-gradient(ellipse at 25% 75%, rgba(120,50,220,0.08) 0%, transparent 45%),
+      radial-gradient(ellipse at 75% 60%, rgba(80,40,180,0.06) 0%, transparent 50%)
+    `,
+    edgeGlow: "rgba(155,107,246,0.10)",
+    label: "שבט",
+  },
+  competition: {
+    accent: "#D4A843",
+    glow: "rgba(212,168,67,0.16)",
+    bgLayers: `
+      radial-gradient(ellipse at 50% 10%, rgba(212,168,67,0.16) 0%, transparent 45%),
+      radial-gradient(ellipse at 30% 70%, rgba(180,100,30,0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 50%, rgba(255,200,80,0.06) 0%, transparent 45%)
+    `,
+    edgeGlow: "rgba(212,168,67,0.12)",
+    label: "תחרות",
+  },
+  default: {
+    accent: "#D4A843",
+    glow: "rgba(212,168,67,0.10)",
+    bgLayers: `
+      radial-gradient(ellipse at 30% 20%, rgba(212,168,67,0.08) 0%, transparent 55%),
+      radial-gradient(ellipse at 70% 80%, rgba(201,53,69,0.06) 0%, transparent 55%)
+    `,
+    edgeGlow: "rgba(212,168,67,0.06)",
+    label: "",
+  },
+};
+
+/** Detect content angle from visual_direction or content pillar text. */
+export function detectAngle(visualDirection?: string | null): ContentAngle {
+  if (!visualDirection) return "default";
+  const text = visualDirection.toLowerCase();
+
+  // Battle: fire, war, soldiers, attack, fortress, army, combat
+  if (/קרב|תקיפ|חייל|צבא|מלחמ|אש|מבצר|נשק|חרב|attack|battle|war|fire|fort|army|soldier/.test(text)) {
+    return "battle";
+  }
+  // Economy: gold, bank, loot, resources, vault, mine
+  if (/זהב|בנק|שלל|משאב|כספ|מכר|עבד|gold|bank|loot|vault|resource|econ/.test(text)) {
+    return "economy";
+  }
+  // Spy: shadow, stealth, spy, intelligence, hidden
+  if (/ריגול|מרגל|צל|סתר|מודיעין|חשיפ|spy|shadow|stealth|intel|hidden/.test(text)) {
+    return "spy";
+  }
+  // Tribe: tribe, clan, alliance, banner, ritual
+  if (/שבט|לחש|ברית|דגל|מועצ|tribe|clan|alliance|banner|ritual/.test(text)) {
+    return "tribe";
+  }
+  // Competition: rank, crown, leaderboard, dominance, city
+  if (/דירוג|כתר|עליונ|תחרו|עיר|rank|crown|leader|domin|compet/.test(text)) {
+    return "competition";
+  }
+
+  return "default";
+}
+
+export function getAngleTheme(angle: ContentAngle): AngleTheme {
+  return ANGLE_THEMES[angle];
+}
+
 // ─── PreviewFrame ────────────────────────────────────────────────────────────
-// The outermost container for every format preview. Sets aspect ratio, dark bg,
-// radial vignette, and RTL direction.
 
 interface PreviewFrameProps {
   /** CSS aspect-ratio value, e.g. "1/1", "9/16", "16/9" */
@@ -45,6 +178,8 @@ interface PreviewFrameProps {
   className?: string;
   /** Optional max-width override (default 420px) */
   maxWidth?: number;
+  /** Content angle for themed background (auto-detected if not provided) */
+  angle?: ContentAngle;
 }
 
 export function PreviewFrame({
@@ -52,7 +187,10 @@ export function PreviewFrame({
   children,
   className = "",
   maxWidth = 420,
+  angle = "default",
 }: PreviewFrameProps) {
+  const theme = getAngleTheme(angle);
+
   return (
     <div
       dir="rtl"
@@ -62,11 +200,15 @@ export function PreviewFrame({
         maxWidth,
         width: "100%",
         background: `
-          radial-gradient(ellipse at 30% 20%, rgba(212,168,67,0.08) 0%, transparent 60%),
-          radial-gradient(ellipse at 70% 80%, rgba(201,53,69,0.06) 0%, transparent 60%),
+          ${theme.bgLayers},
           linear-gradient(180deg, ${colors.surface} 0%, ${colors.bg} 100%)
         `,
         border: `1px solid ${colors.border}`,
+        boxShadow: `
+          0 0 60px ${theme.edgeGlow},
+          0 0 120px ${theme.edgeGlow},
+          inset 0 1px 0 rgba(255,255,255,0.03)
+        `,
       }}
     >
       {children}
@@ -75,25 +217,106 @@ export function PreviewFrame({
 }
 
 // ─── GradientOverlay ─────────────────────────────────────────────────────────
-// Bottom-up gradient so text is legible over any background visual.
 
 interface GradientOverlayProps {
-  /** "bottom" | "top" | "full" */
   position?: "bottom" | "top" | "full";
+  /** Content angle for tinted overlays */
+  angle?: ContentAngle;
 }
 
-export function GradientOverlay({ position = "bottom" }: GradientOverlayProps) {
+export function GradientOverlay({ position = "bottom", angle = "default" }: GradientOverlayProps) {
+  const theme = getAngleTheme(angle);
+
   const gradients: Record<string, string> = {
-    bottom: `linear-gradient(to top, ${colors.overlayFrom} 0%, ${colors.overlayTo} 50%, transparent 100%)`,
-    top: `linear-gradient(to bottom, ${colors.overlayFrom} 0%, ${colors.overlayTo} 50%, transparent 100%)`,
-    full: `linear-gradient(to bottom, ${colors.overlayFrom} 0%, rgba(10,12,18,0.7) 50%, ${colors.overlayFrom} 100%)`,
+    bottom: `
+      linear-gradient(to top,
+        ${colors.overlayDense} 0%,
+        ${colors.overlayMedium} 40%,
+        ${colors.overlayLight} 70%,
+        transparent 100%
+      )
+    `,
+    top: `
+      linear-gradient(to bottom,
+        ${colors.overlayDense} 0%,
+        ${colors.overlayMedium} 40%,
+        transparent 100%
+      )
+    `,
+    full: `
+      linear-gradient(to bottom,
+        ${colors.overlayDense} 0%,
+        ${colors.overlayMedium} 35%,
+        rgba(6,8,16,0.55) 55%,
+        ${colors.overlayMedium} 75%,
+        ${colors.overlayDense} 100%
+      )
+    `,
   };
 
   return (
-    <div
-      className="absolute inset-0 pointer-events-none"
-      style={{ background: gradients[position] }}
-    />
+    <>
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: gradients[position] }}
+      />
+      {/* Subtle angle-tinted atmospheric layer */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse at 50% 40%, ${theme.glow} 0%, transparent 70%)`,
+          mixBlendMode: "screen",
+        }}
+      />
+    </>
+  );
+}
+
+// ─── Atmospheric layers ──────────────────────────────────────────────────────
+
+interface AtmosphereProps {
+  angle?: ContentAngle;
+}
+
+/** Multi-layer atmospheric effect: top glow + bottom fog + edge vignette. */
+export function Atmosphere({ angle = "default" }: AtmosphereProps) {
+  const theme = getAngleTheme(angle);
+
+  return (
+    <>
+      {/* Top accent glow */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse at 50% -10%, ${theme.glow} 0%, transparent 60%)`,
+        }}
+      />
+      {/* Bottom fog */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(ellipse at 50% 110%, rgba(6,8,16,0.8) 0%, transparent 50%)`,
+        }}
+      />
+      {/* Corner vignette */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: `
+            radial-gradient(ellipse at 0% 0%, rgba(6,8,16,0.4) 0%, transparent 50%),
+            radial-gradient(ellipse at 100% 100%, rgba(6,8,16,0.4) 0%, transparent 50%)
+          `,
+        }}
+      />
+      {/* Subtle noise texture via CSS pattern */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E")`,
+          backgroundSize: "128px 128px",
+        }}
+      />
+    </>
   );
 }
 
@@ -101,21 +324,30 @@ export function GradientOverlay({ position = "bottom" }: GradientOverlayProps) {
 
 interface HookTextProps {
   children: ReactNode;
-  size?: "lg" | "md" | "sm";
+  size?: "xl" | "lg" | "md" | "sm";
+  /** Accent color override (defaults to white with gold glow) */
+  glowColor?: string;
 }
 
-export function HookText({ children, size = "lg" }: HookTextProps) {
+export function HookText({ children, size = "lg", glowColor }: HookTextProps) {
   const sizeClasses = {
-    lg: "text-2xl leading-tight",
-    md: "text-xl leading-tight",
+    xl: "text-[28px] leading-[1.15]",
+    lg: "text-2xl leading-[1.2]",
+    md: "text-xl leading-[1.2]",
     sm: "text-lg leading-snug",
   };
+  const glow = glowColor ?? "rgba(212,168,67,0.25)";
+
   return (
     <h3
-      className={`font-extrabold ${sizeClasses[size]}`}
+      className={`font-black tracking-tight ${sizeClasses[size]}`}
       style={{
         color: colors.text,
-        textShadow: "0 2px 12px rgba(0,0,0,0.7), 0 0 40px rgba(212,168,67,0.15)",
+        textShadow: `
+          0 2px 16px rgba(0,0,0,0.8),
+          0 0 40px ${glow},
+          0 0 80px ${glow}
+        `,
       }}
     >
       {children}
@@ -131,9 +363,10 @@ interface CaptionTextProps {
 export function CaptionText({ children, maxLines }: CaptionTextProps) {
   return (
     <p
-      className="text-sm leading-relaxed whitespace-pre-wrap"
+      className="text-[13px] leading-relaxed whitespace-pre-wrap font-medium"
       style={{
-        color: colors.muted,
+        color: colors.textSecondary,
+        textShadow: "0 1px 8px rgba(0,0,0,0.6)",
         ...(maxLines
           ? {
               display: "-webkit-box",
@@ -149,18 +382,32 @@ export function CaptionText({ children, maxLines }: CaptionTextProps) {
   );
 }
 
+// ─── CtaBadge ────────────────────────────────────────────────────────────────
+
 interface CtaBadgeProps {
   children: ReactNode;
+  angle?: ContentAngle;
 }
 
-export function CtaBadge({ children }: CtaBadgeProps) {
+export function CtaBadge({ children, angle = "default" }: CtaBadgeProps) {
+  const theme = getAngleTheme(angle);
+  const isGold = angle === "default" || angle === "economy" || angle === "competition";
+  const bg = isGold
+    ? `linear-gradient(135deg, ${colors.gold} 0%, #B8912E 100%)`
+    : `linear-gradient(135deg, ${theme.accent} 0%, ${colors.bg} 200%)`;
+  const textColor = isGold ? colors.bg : colors.text;
+  const shadow = isGold
+    ? `0 0 24px rgba(212,168,67,0.4), 0 0 60px rgba(212,168,67,0.15), 0 4px 12px rgba(0,0,0,0.5)`
+    : `0 0 24px ${theme.edgeGlow}, 0 4px 12px rgba(0,0,0,0.5)`;
+
   return (
     <span
-      className="inline-block text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-lg"
+      className="inline-block text-xs font-black uppercase tracking-wider px-5 py-2.5 rounded-lg"
       style={{
-        background: `linear-gradient(135deg, ${colors.gold} 0%, #B8912E 100%)`,
-        color: colors.bg,
-        boxShadow: `0 0 20px rgba(212,168,67,0.3), 0 2px 8px rgba(0,0,0,0.4)`,
+        background: bg,
+        color: textColor,
+        boxShadow: shadow,
+        letterSpacing: "0.08em",
       }}
     >
       {children}
@@ -169,21 +416,24 @@ export function CtaBadge({ children }: CtaBadgeProps) {
 }
 
 // ─── FormatBadge ─────────────────────────────────────────────────────────────
-// Small label shown in corner to identify the format type.
 
 interface FormatBadgeProps {
   label: string;
+  angle?: ContentAngle;
 }
 
-export function FormatBadge({ label }: FormatBadgeProps) {
+export function FormatBadge({ label, angle = "default" }: FormatBadgeProps) {
+  const theme = getAngleTheme(angle);
   return (
     <span
-      className="absolute top-3 left-3 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded"
+      className="absolute top-3 left-3 text-[9px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-md"
       style={{
-        backgroundColor: "rgba(45,49,72,0.8)",
-        color: colors.muted,
-        backdropFilter: "blur(8px)",
+        backgroundColor: "rgba(6,8,16,0.7)",
+        color: theme.accent,
+        backdropFilter: "blur(12px)",
         zIndex: 10,
+        border: `1px solid rgba(255,255,255,0.06)`,
+        boxShadow: `0 0 12px ${theme.edgeGlow}`,
       }}
     >
       {label}
@@ -192,24 +442,26 @@ export function FormatBadge({ label }: FormatBadgeProps) {
 }
 
 // ─── SlideIndicator ──────────────────────────────────────────────────────────
-// Dot indicators for carousels / stories.
 
 interface SlideIndicatorProps {
   total: number;
   current: number;
+  angle?: ContentAngle;
 }
 
-export function SlideIndicator({ total, current }: SlideIndicatorProps) {
+export function SlideIndicator({ total, current, angle = "default" }: SlideIndicatorProps) {
+  const theme = getAngleTheme(angle);
   return (
-    <div className="flex gap-1.5 justify-center">
+    <div className="flex gap-1.5 justify-center py-1">
       {Array.from({ length: total }, (_, i) => (
         <span
           key={i}
           className="rounded-full transition-all duration-300"
           style={{
-            width: i === current ? 20 : 6,
+            width: i === current ? 24 : 6,
             height: 6,
-            backgroundColor: i === current ? colors.gold : "rgba(255,255,255,0.25)",
+            backgroundColor: i === current ? theme.accent : "rgba(255,255,255,0.15)",
+            boxShadow: i === current ? `0 0 10px ${theme.glow}` : "none",
           }}
         />
       ))}
@@ -217,21 +469,58 @@ export function SlideIndicator({ total, current }: SlideIndicatorProps) {
   );
 }
 
+// ─── ArcLabel ────────────────────────────────────────────────────────────────
+// Emotional arc step label for carousel slides.
+
+interface ArcLabelProps {
+  children: ReactNode;
+  angle?: ContentAngle;
+}
+
+export function ArcLabel({ children, angle = "default" }: ArcLabelProps) {
+  const theme = getAngleTheme(angle);
+  return (
+    <span
+      className="text-[10px] font-black uppercase tracking-[0.2em]"
+      style={{
+        color: theme.accent,
+        textShadow: `0 0 20px ${theme.glow}`,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 // ─── SceneNumber ─────────────────────────────────────────────────────────────
-// Numbered badge for reel storyboard scenes.
 
 interface SceneNumberProps {
   number: number;
+  angle?: ContentAngle;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
-export function SceneNumber({ number }: SceneNumberProps) {
+export function SceneNumber({ number, angle = "default", isFirst, isLast }: SceneNumberProps) {
+  const theme = getAngleTheme(angle);
+  const bg = isFirst
+    ? `linear-gradient(135deg, ${theme.accent} 0%, ${colors.crimson} 100%)`
+    : isLast
+      ? `linear-gradient(135deg, ${colors.gold} 0%, #B8912E 100%)`
+      : `linear-gradient(135deg, ${colors.elevated} 0%, ${colors.border} 100%)`;
+  const color = isFirst || isLast ? colors.bg : colors.textSecondary;
+
   return (
     <span
-      className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+      className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black"
       style={{
-        background: `linear-gradient(135deg, ${colors.red} 0%, #8B1A2A 100%)`,
-        color: colors.text,
-        boxShadow: "0 0 12px rgba(201,53,69,0.3)",
+        background: bg,
+        color,
+        boxShadow: isFirst
+          ? `0 0 16px ${theme.glow}`
+          : isLast
+            ? `0 0 16px rgba(212,168,67,0.25)`
+            : "0 2px 6px rgba(0,0,0,0.3)",
       }}
     >
       {number}
@@ -241,25 +530,63 @@ export function SceneNumber({ number }: SceneNumberProps) {
 
 // ─── Decorative elements ─────────────────────────────────────────────────────
 
-export function WarGlow() {
+export function GoldAccentLine() {
   return (
     <div
-      className="absolute inset-0 pointer-events-none"
+      className="w-16 h-[2px] rounded-full"
       style={{
-        background:
-          "radial-gradient(circle at 50% 0%, rgba(201,53,69,0.12) 0%, transparent 50%)",
+        background: `linear-gradient(90deg, ${colors.gold}, ${colors.goldBright}, transparent)`,
+        boxShadow: `0 0 12px rgba(212,168,67,0.3)`,
       }}
     />
   );
 }
 
-export function GoldAccentLine() {
+interface AccentLineProps {
+  angle?: ContentAngle;
+}
+
+export function AccentLine({ angle = "default" }: AccentLineProps) {
+  const theme = getAngleTheme(angle);
   return (
     <div
-      className="w-12 h-0.5 rounded-full"
+      className="w-16 h-[2px] rounded-full"
       style={{
-        background: `linear-gradient(90deg, ${colors.gold}, transparent)`,
+        background: `linear-gradient(90deg, ${theme.accent}, transparent)`,
+        boxShadow: `0 0 12px ${theme.glow}`,
       }}
     />
+  );
+}
+
+// ─── NavButton ───────────────────────────────────────────────────────────────
+// Reusable prev/next navigation button for carousel / story.
+
+interface NavButtonProps {
+  direction: "prev" | "next";
+  onClick: () => void;
+  angle?: ContentAngle;
+  children: ReactNode;
+}
+
+export function NavButton({ direction, onClick, angle = "default", children }: NavButtonProps) {
+  const theme = getAngleTheme(angle);
+  const position = direction === "prev" ? "right-2.5" : "left-2.5";
+
+  return (
+    <button
+      onClick={onClick}
+      className={`absolute ${position} top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110`}
+      style={{
+        backgroundColor: "rgba(6,8,16,0.75)",
+        color: colors.text,
+        backdropFilter: "blur(8px)",
+        border: `1px solid rgba(255,255,255,0.08)`,
+        boxShadow: `0 0 16px ${theme.edgeGlow}, 0 4px 12px rgba(0,0,0,0.4)`,
+      }}
+      aria-label={direction === "prev" ? "Previous slide" : "Next slide"}
+    >
+      {children}
+    </button>
   );
 }
